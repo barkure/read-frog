@@ -96,7 +96,7 @@ describe("subtitles task requirements", () => {
       ...configWithProvider(GOOGLE),
       pageTranslation: { ...DEFAULT_CONFIG.pageTranslation, enableAIContentAware: true },
     } as never
-    const sessionRef = { kind: "local" as const, config: DEFAULT_PROVIDER_CONFIG.openai }
+    const sessionRef = { kind: "local" as const, config: DEFAULT_PROVIDER_CONFIG.deepseek }
     sendMessageMock.mockResolvedValue("a summary")
 
     const summary = await fetchSubtitlesSummary(

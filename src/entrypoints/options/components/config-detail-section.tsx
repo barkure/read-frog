@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Icon } from "@iconify/react"
+import { IconChevronLeft } from "@tabler/icons-react"
 import { Link } from "react-router"
 import { Button } from "@/components/ui/base-ui/button"
 import { useDrillInBack } from "../navigation/drill-in"
@@ -45,7 +45,7 @@ export function ConfigDetailSection({
               className="-ml-2"
               render={<Link to={backTo} onClick={goBack} />}
             >
-              <Icon icon="tabler:chevron-left" />
+              <IconChevronLeft />
             </Button>
             {title}
           </span>

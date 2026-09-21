@@ -1,5 +1,5 @@
 import type { TranslatePromptObj } from "@/types/config/translate"
-import { Icon } from "@iconify/react"
+import { IconCopy, IconEye, IconPencil, IconPlus } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useState } from "react"
 import { Button } from "@/components/ui/base-ui/button"
@@ -85,6 +85,8 @@ export function ConfigurePrompt({
     setIsCopyingBuiltIn(true)
   }
 
+  const ActionIcon = isBuiltIn ? IconEye : IconPencil
+
   return (
     <Sheet
       onOpenChange={(open) => {
@@ -104,11 +106,11 @@ export function ConfigurePrompt({
             />
           }
         >
-          <Icon icon={isBuiltIn ? "tabler:eye" : "tabler:pencil"} className="size-4" />
+          <ActionIcon className="size-4" />
         </SheetTrigger>
       ) : (
         <SheetTrigger render={<Button className={className} {...props} />}>
-          <Icon icon="tabler:plus" className="size-4" />
+          <IconPlus className="size-4" />
           {i18n.t("options.translation.personalizedPrompts.addPrompt")}
         </SheetTrigger>
       )}
@@ -165,7 +167,7 @@ export function ConfigurePrompt({
         {isReadOnly ? (
           <SheetFooter>
             <Button onClick={copyBuiltInPrompt}>
-              <Icon icon="tabler:copy" className="size-4" />
+              <IconCopy className="size-4" />
               {i18n.t("options.translation.personalizedPrompts.copyAndCustomize")}
             </Button>
             <SheetClose render={<Button variant="outline" />}>

@@ -1,3 +1,4 @@
+import type { UserRulesValidationErrorKind, UserRulesValidationResult } from "./validate-user-rules"
 /**
  * User Site Rules Editor
  *
@@ -5,9 +6,7 @@
  * explicit Save button (same architecture as the custom translation CSS
  * editor: 500ms debounced validation, Save/Saved label, status line).
  */
-
-import type { UserRulesValidationErrorKind, UserRulesValidationResult } from "./validate-user-rules"
-import { Icon } from "@iconify/react"
+import { IconAlertCircleFilled } from "@tabler/icons-react"
 import { useAtom } from "jotai"
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/base-ui/alert"
@@ -92,7 +91,7 @@ export function UserRulesEditor() {
         />
         {!validation.ok && (
           <Alert variant="destructive">
-            <Icon icon="tabler:alert-circle-filled" className="size-4" />
+            <IconAlertCircleFilled className="size-4" />
             <AlertTitle>{i18n.t(VALIDATION_ERROR_MESSAGE_KEYS[validation.kind])}</AlertTitle>
             <AlertDescription>
               <ul className="list-inside list-disc text-xs">

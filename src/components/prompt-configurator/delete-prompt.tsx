@@ -1,5 +1,5 @@
 import type { TranslatePromptObj } from "@/types/config/translate"
-import { Icon } from "@iconify/react/dist/iconify.js"
+import { IconTrash } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useState } from "react"
 import {
@@ -56,7 +56,7 @@ export function DeletePrompt({
           />
         }
       >
-        <Icon icon="tabler:trash" className="size-4"></Icon>
+        <IconTrash className="size-4"></IconTrash>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

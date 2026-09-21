@@ -18,20 +18,6 @@ type SearchItemDefinition = Omit<SearchItem, "titleKey" | "descriptionKey" | "pa
 
 export const SEARCH_ITEMS: SearchItem[] = [
   // Advanced page
-  {
-    sectionId: "glossary-enabled",
-    route: "/advanced/glossary",
-    titleKey: "options.advanced.glossary.enable.title",
-    descriptionKey: "options.advanced.glossary.enable.description",
-    pageKey: "options.advanced.glossary.title",
-  },
-  {
-    sectionId: "glossary-library",
-    route: "/advanced/glossary",
-    titleKey: "options.advanced.glossary.library.title",
-    descriptionKey: "options.advanced.glossary.library.description",
-    pageKey: "options.advanced.glossary.title",
-  },
   // Preference page
   {
     // Titled with the section, so "appearance" still finds a row that reads "Theme".
@@ -71,13 +57,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.preference.title",
   },
   {
-    sectionId: "google-drive-sync",
-    route: "/preference",
-    titleKey: "options.preference.config.googleDrive.title",
-    descriptionKey: "options.preference.config.googleDrive.description",
-    pageKey: "options.preference.title",
-  },
-  {
     sectionId: "manual-config-sync",
     route: "/preference",
     titleKey: "options.preference.config.manualSync.title",
@@ -85,32 +64,10 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.preference.title",
   },
   {
-    // Its own page, drilled into from the Preference page's Config section.
-    sectionId: "config-backup",
-    route: "/preference/config-backup",
-    titleKey: "options.preference.config.backup.title",
-    descriptionKey: "options.preference.config.backup.description",
-    pageKey: "options.preference.title",
-  },
-  {
     sectionId: "reset-config",
     route: "/preference",
     titleKey: "options.preference.config.reset.title",
     descriptionKey: "options.preference.config.reset.description",
-    pageKey: "options.preference.title",
-  },
-  {
-    sectionId: "beta-experience",
-    route: "/preference",
-    titleKey: "options.preference.userExperience.beta.title",
-    descriptionKey: "options.preference.userExperience.beta.description",
-    pageKey: "options.preference.title",
-  },
-  {
-    sectionId: "analytics",
-    route: "/preference",
-    titleKey: "options.preference.userExperience.analytics.title",
-    descriptionKey: "options.preference.userExperience.analytics.description",
     pageKey: "options.preference.title",
   },
 
@@ -150,13 +107,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     descriptionKey: "options.shortcuts.nodeTranslation.description",
     pageKey: "options.shortcuts.title",
   },
-  {
-    sectionId: "translation-hub-shortcut",
-    route: "/shortcuts",
-    titleKey: "options.shortcuts.translationHub.title",
-    descriptionKey: "options.shortcuts.translationHub.description",
-    pageKey: "options.shortcuts.title",
-  },
 
   // API Providers page
   {
@@ -186,15 +136,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     titleKey: "options.apiProviders.aiContentAware.title",
     descriptionKey: "options.apiProviders.aiContentAware.description",
     pageKey: "options.apiProviders.title",
-  },
-
-  // Custom Actions page
-  {
-    sectionId: "custom-actions",
-    route: "/custom-actions",
-    titleKey: "options.selectionToolbar.customActions.title",
-    descriptionKey: "options.selectionToolbar.customActions.description",
-    pageKey: "options.selectionToolbar.customActions.title",
   },
 
   // Translation page
@@ -347,13 +288,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     descriptionKey: "options.floatingButton.display.disabledSites.description",
     pageKey: "options.floatingButton.title",
   },
-  {
-    sectionId: "floating-button-click-action",
-    route: "/floating-button",
-    titleKey: "options.floatingButton.clickAction.title",
-    descriptionKey: "options.floatingButton.clickAction.description",
-    pageKey: "options.floatingButton.title",
-  },
 
   // Selection Toolbar page
   {
@@ -370,13 +304,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     route: "/selection-toolbar",
     titleKey: "options.selectionToolbar.actions.title",
     descriptionKey: "options.selectionToolbar.actions.translate.description",
-    pageKey: "options.selectionToolbar.title",
-  },
-  {
-    sectionId: "selection-toolbar-note-suggestion",
-    route: "/selection-toolbar",
-    titleKey: "options.selectionToolbar.actions.noteSuggestion.title",
-    descriptionKey: "options.selectionToolbar.actions.noteSuggestion.description",
     pageKey: "options.selectionToolbar.title",
   },
   {
@@ -457,13 +384,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.videoSubtitles.title",
   },
   {
-    sectionId: "subtitles-ai-quota",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.aiQuota.title",
-    descriptionKey: "options.videoSubtitles.aiQuota.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
     // Its own page, drilled into from the Video Subtitles page's Subtitle style section.
     sectionId: "subtitles-style",
     route: "/video-subtitles/style",
@@ -510,39 +430,4 @@ export const SEARCH_ITEMS: SearchItem[] = [
   },
 
   // Text to Speech page
-  {
-    sectionId: "language-voice",
-    route: "/tts",
-    titleKey: "options.tts.voice.language.title",
-    descriptionKey: "options.tts.voice.language.description",
-    pageKey: "options.tts.title",
-  },
-  {
-    sectionId: "tts-voice",
-    route: "/tts",
-    titleKey: "options.tts.voice.fallback.title",
-    descriptionKey: "options.tts.voice.fallback.description",
-    pageKey: "options.tts.title",
-  },
-  {
-    sectionId: "tts-rate",
-    route: "/tts",
-    titleKey: "options.tts.speech.rate.title",
-    descriptionKey: "options.tts.speech.rate.description",
-    pageKey: "options.tts.title",
-  },
-  {
-    sectionId: "tts-pitch",
-    route: "/tts",
-    titleKey: "options.tts.speech.pitch.title",
-    descriptionKey: "options.tts.speech.pitch.description",
-    pageKey: "options.tts.title",
-  },
-  {
-    sectionId: "tts-volume",
-    route: "/tts",
-    titleKey: "options.tts.speech.volume.title",
-    descriptionKey: "options.tts.speech.volume.description",
-    pageKey: "options.tts.title",
-  },
 ] satisfies SearchItemDefinition[]

@@ -40,7 +40,7 @@ export const REQUEST_ERROR_META = Symbol("requestErrorMeta")
 export const MAX_RETRY_AFTER_MS = 5 * 60_000
 // Base queue pause after a 429 with no Retry-After header. Doubles per
 // consecutive rate-limit window; sized for the slowest common free tier
-// (Gemini free RPM=15 → ≥4s spacing).
+// Space requests to respect the provider rate limit.
 export const RATE_LIMIT_BASE_PAUSE_MS = 5_000
 // Pause windows without an intervening success before the queue gives up and
 // surfaces errors (the pre-pause failQueue behavior, kept as a backstop).
@@ -206,11 +206,11 @@ function isRateLimitRequestErrorMeta(meta: RequestErrorMeta): boolean {
 }
 
 function isQueueFatalRequestErrorMeta(meta: RequestErrorMeta): boolean {
-  // "access-denied" marks hosted hard denials (quota exhausted / tier
-  // restricted / unauthenticated): every queued sibling would fail
-  // identically, so drain like 401/403/404. Draining also fails unrelated
-  // tasks sharing the queue (e.g. a queued summary) — rare, and consistent
-  // with the status-code drains below.
+  // "access-denied" marks hard denials (bad or missing credentials, provider
+  // rejecting the key): every queued sibling would fail identically, so drain
+  // like 401/403/404. Draining also fails unrelated tasks sharing the queue
+  // (e.g. a queued summary) — rare, and consistent with the status-code drains
+  // below.
   return (
     meta.kind === "access-denied" ||
     meta.statusCode === 401 ||

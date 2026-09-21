@@ -23,56 +23,7 @@ export type UserRulesValidationResult =
   | { ok: true; rules: SiteRule[] }
   | { ok: false; kind: UserRulesValidationErrorKind; issues: UserRulesIssue[] }
 
-const selectorListSchema = z.array(z.string()).optional()
-
-const editorSiteRuleInputSchema = siteRuleSchema
-  .extend({
-    forceBlockSelectors: selectorListSchema,
-    "forceBlockSelectors.add": selectorListSchema,
-    "forceBlockSelectors.remove": selectorListSchema,
-    forceInlineSelectors: selectorListSchema,
-    "forceInlineSelectors.add": selectorListSchema,
-    "forceInlineSelectors.remove": selectorListSchema,
-  })
-  .strict()
-
-const LEGACY_FORCE_SELECTOR_MAPPINGS = [
-  ["forceBlockSelectors", ["forceBlockNodeSelectors", "forceBlockStyleSelectors"]],
-  ["forceBlockSelectors.add", ["forceBlockNodeSelectors.add", "forceBlockStyleSelectors.add"]],
-  [
-    "forceBlockSelectors.remove",
-    ["forceBlockNodeSelectors.remove", "forceBlockStyleSelectors.remove"],
-  ],
-  ["forceInlineSelectors", ["forceInlineStyleSelectors"]],
-  ["forceInlineSelectors.add", ["forceInlineStyleSelectors.add"]],
-  ["forceInlineSelectors.remove", ["forceInlineStyleSelectors.remove"]],
-] as const
-
-function hasOwn(value: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key)
-}
-
-function migrateLegacyForceSelectors(rule: z.infer<typeof editorSiteRuleInputSchema>): SiteRule {
-  const source = rule as Record<string, unknown>
-  const migrated: Record<string, unknown> = { ...source }
-
-  for (const [legacyKey, canonicalKeys] of LEGACY_FORCE_SELECTOR_MAPPINGS) {
-    if (hasOwn(source, legacyKey)) {
-      for (const canonicalKey of canonicalKeys) {
-        if (!hasOwn(source, canonicalKey)) {
-          migrated[canonicalKey] = source[legacyKey]
-        }
-      }
-    }
-    delete migrated[legacyKey]
-  }
-
-  return migrated as SiteRule
-}
-
-const userRulesArraySchema = z.array(
-  editorSiteRuleInputSchema.transform(migrateLegacyForceSelectors),
-)
+const userRulesArraySchema = z.array(siteRuleSchema.strict())
 
 /** Render a zod issue path as `rules[2].matches`: numeric segments as `[n]`, string segments as `.name`. */
 function formatIssuePath(path: PropertyKey[]): string {

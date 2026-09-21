@@ -1,35 +1,21 @@
 import type { JSONValue } from "ai"
-import type { AISDKReasoning, LLMProviderConfig } from "@/types/config/provider"
-import { resolveModelId } from "@/utils/providers/model-id"
-import { getProviderOptionsWithOverride } from "@/utils/providers/options"
-import { getTopLevelReasoning } from "@/utils/providers/reasoning"
+import type { LLMProviderConfig } from "@/types/config/provider"
+import { buildProviderOptions } from "@/utils/providers/options"
 
 export interface LocalGenerateTextParams {
-  reasoning: AISDKReasoning | undefined
-  temperature: number | undefined
   providerOptions: Record<string, Record<string, JSONValue>> | undefined
 }
 
 /**
- * The per-provider knobs every non-streaming local call passes to the AI SDK.
- * Extracted because the exact `getTopLevelReasoning` + `resolveModelId` +
- * `getProviderOptionsWithOverride` triple was copy-pasted verbatim in the
- * article summary, subtitle segmentation, and language detection paths, and
- * routing all three through one hosted/local helper needs a single source for
- * it.
+ * The per-provider knobs every non-streaming local call passes to the AI SDK. Extracted because
+ * the article summary, subtitle segmentation, and language detection paths all need exactly the
+ * same payload.
+ *
+ * Sampling parameters are deliberately absent. DeepSeek is the only model-backed provider in this
+ * build, and its API defaults are what the extension runs on — no temperature, no thinking mode.
  */
 export function buildLocalGenerateTextParams(config: LLMProviderConfig): LocalGenerateTextParams {
-  const reasoning = getTopLevelReasoning(config)
-  const modelName = resolveModelId(config.model)
-
   return {
-    reasoning,
-    temperature: config.temperature,
-    providerOptions: getProviderOptionsWithOverride(
-      modelName ?? "",
-      config.provider,
-      config.providerOptions,
-      reasoning,
-    ),
+    providerOptions: buildProviderOptions(config.provider, config.providerOptions),
   }
 }

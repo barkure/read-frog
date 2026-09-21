@@ -13,5 +13,4 @@ allowBuilds:
   core-js: true
   esbuild: true
   msw: true
-  nx: true
   spawn-sync: true

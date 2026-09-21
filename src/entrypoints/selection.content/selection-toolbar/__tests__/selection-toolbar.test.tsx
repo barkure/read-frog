@@ -20,14 +20,6 @@ vi.mock("../translate-button", () => ({
   TranslateButton: () => null,
 }))
 
-vi.mock("../speak-button", () => ({
-  SpeakButton: () => null,
-}))
-
-vi.mock("../custom-action-button", () => ({
-  SelectionToolbarCustomActionButtons: () => null,
-}))
-
 // Mock atoms
 vi.mock("@/utils/atoms/config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/utils/atoms/config")>()

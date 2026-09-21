@@ -80,15 +80,9 @@ export const MAX_SITE_RULES_JSON_LENGTH = 65536
 /** Editor-enforced cap on the number of user rules. */
 export const MAX_USER_SITE_RULES = 200
 
-// `.default(...)` is load-bearing: it lets configs stored before this field
-// existed still parse successfully, avoiding the destructive
-// fallback-to-DEFAULT_CONFIG path during the upgrade window (same pattern as
-// `uiLanguage` in config.ts).
-export const siteRulesConfigSchema = z
-  .object({
-    userRules: z.array(siteRuleSchema),
-    disabledBuiltInRules: z.array(z.string()),
-  })
-  .default({ userRules: [], disabledBuiltInRules: [] })
+export const siteRulesConfigSchema = z.object({
+  userRules: z.array(siteRuleSchema),
+  disabledBuiltInRules: z.array(z.string()),
+})
 
 export type SiteRulesConfig = z.infer<typeof siteRulesConfigSchema>

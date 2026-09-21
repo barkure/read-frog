@@ -1,7 +1,7 @@
 import type { VariantProps } from "class-variance-authority"
 import type { buttonVariants } from "@/components/ui/base-ui/button"
 import type { Config } from "@/types/config/config"
-import { Icon } from "@iconify/react"
+import { IconBraces } from "@tabler/icons-react"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Dialog,
@@ -28,7 +28,7 @@ export function ViewConfig({
   return (
     <Dialog>
       <DialogTrigger render={<Button variant="outline" size={size} className={className} />}>
-        <Icon icon="tabler:braces" />
+        <IconBraces />
         {i18n.t("options.preference.config.viewConfig.open")}
       </DialogTrigger>
 

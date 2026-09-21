@@ -1,22 +1,22 @@
 import type { ComponentProps, ReactElement } from "react"
 import { Toast } from "@base-ui/react/toast"
 import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  InfoIcon,
-  LoaderCircleIcon,
-  type LucideIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
+  IconAlertCircle,
+  IconCircleCheck,
+  IconInfoCircle,
+  IconLoader2,
+  type TablerIcon,
+  IconAlertTriangle,
+} from "@tabler/icons-react"
 import { buttonVariants } from "@/components/ui/base-ui/button"
 import { cn } from "@/utils/styles/utils"
 
 const TOAST_ICONS = {
-  error: CircleAlertIcon,
-  info: InfoIcon,
-  loading: LoaderCircleIcon,
-  success: CircleCheckIcon,
-  warning: TriangleAlertIcon,
+  error: IconAlertCircle,
+  info: IconInfoCircle,
+  loading: IconLoader2,
+  success: IconCircleCheck,
+  warning: IconAlertTriangle,
 } as const
 
 type SwipeDirection = "up" | "down" | "left" | "right"
@@ -71,7 +71,7 @@ function FullToastContent({
   toast,
   stacked = false,
 }: {
-  Icon: LucideIcon | null
+  Icon: TablerIcon | null
   toast: Toast.Root.ToastObject
   stacked?: boolean
 }): ReactElement {

@@ -42,7 +42,7 @@ function createConfig({
   aiSegmentation?: boolean
   targetCode?: Config["language"]["targetCode"]
 } = {}): Config {
-  const provider = DEFAULT_PROVIDER_CONFIG.openai
+  const provider = DEFAULT_PROVIDER_CONFIG.deepseek
   return {
     ...DEFAULT_CONFIG,
     language: { ...DEFAULT_CONFIG.language, sourceCode: "eng", targetCode },
@@ -105,7 +105,7 @@ describe("translatedSubtitlesDownloader", () => {
     // a null here would skip the AI path entirely.
     mocks.resolveSubtitlesProviderRef.mockResolvedValue({
       kind: "local",
-      config: DEFAULT_PROVIDER_CONFIG.openai,
+      config: DEFAULT_PROVIDER_CONFIG.deepseek,
     })
     mocks.fetchSubtitlesSummary.mockResolvedValue(null)
     mocks.translateSubtitles.mockImplementation(async (fragments: SubtitlesFragment[]) =>
@@ -131,7 +131,7 @@ describe("translatedSubtitlesDownloader", () => {
     // re-resolving one of its own.
     expect(mocks.fetchSubtitlesSummary).toHaveBeenCalledWith(expect.any(Object), config, {
       kind: "local",
-      config: DEFAULT_PROVIDER_CONFIG.openai,
+      config: DEFAULT_PROVIDER_CONFIG.deepseek,
     })
     expect(mocks.translateSubtitles).toHaveBeenNthCalledWith(
       1,

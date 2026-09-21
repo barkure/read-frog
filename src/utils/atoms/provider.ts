@@ -4,7 +4,7 @@ import type { LLMProviderConfig, ProviderConfig } from "@/types/config/provider"
 import { deepmerge } from "deepmerge-ts"
 import { atom } from "jotai"
 import { atomFamily } from "jotai-family"
-import { llmProviderConfigItemSchema, providerConfigItemSchema } from "@/types/config/provider"
+import { apiProviderConfigItemSchema, providerConfigItemSchema } from "@/types/config/provider"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { getProviderConfigById } from "../config/helpers"
 import { FEATURE_PROVIDER_DEFS } from "../constants/feature-providers"
@@ -47,7 +47,7 @@ export function updateLLMProviderConfig(
   updates: PartialDeep<LLMProviderConfig>,
 ): LLMProviderConfig {
   const result = mergeUnknown(config, updates) as LLMProviderConfig
-  return llmProviderConfigItemSchema.parse(result)
+  return apiProviderConfigItemSchema.parse(result)
 }
 
 export function updateProviderConfig(

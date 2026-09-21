@@ -6,7 +6,7 @@ export default defineConfig({
   // TODO: remove any
   plugins: [WxtVitest() as any, react()],
   test: {
-    exclude: [...configDefaults.exclude, "**/.claude/**", "**/repos/**"],
+    exclude: [...configDefaults.exclude, "**/repos/**"],
     environment: "node",
     environmentOptions: {
       // jsdom defaults to http://localhost:3000/, which built-in site rules
@@ -19,11 +19,5 @@ export default defineConfig({
     globals: true,
     setupFiles: "vitest.setup.ts",
     watch: false,
-    coverage: {
-      provider: "istanbul",
-      reporter: ["text", "html", "lcov"],
-      // include: ['src/**/*.{ts,tsx}'],
-      // exclude: ['src/**/*.spec.ts']
-    },
   },
 })

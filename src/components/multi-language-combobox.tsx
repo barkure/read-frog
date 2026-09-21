@@ -1,8 +1,8 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { LanguageItem } from "./language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-import { Icon } from "@iconify/react"
 import { langCodeISO6393Schema } from "@read-frog/definitions"
+import { IconChevronDown } from "@tabler/icons-react"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/base-ui/button"
 import {
@@ -54,10 +54,13 @@ export function MultiLanguageCombobox({
     >
       <ComboboxPrimitive.Trigger render={<Button variant="outline" size="sm" />}>
         <span className="truncate">{buttonLabel}</span>
-        <Icon icon="tabler:chevron-down" className="size-4 text-muted-foreground" />
+        <IconChevronDown className="size-4 text-muted-foreground" />
       </ComboboxPrimitive.Trigger>
       <ComboboxContent align="end" className="w-fit">
-        <ComboboxInput showTrigger={false} placeholder={i18n.t("translationHub.searchLanguages")} />
+        <ComboboxInput
+          showTrigger={false}
+          placeholder={i18n.t("popup.languageSelector.searchLanguages")}
+        />
         <ComboboxList>
           {(item: LanguageItem<LangCodeISO6393>) => (
             <ComboboxItem key={item.value} value={item}>
@@ -65,7 +68,7 @@ export function MultiLanguageCombobox({
             </ComboboxItem>
           )}
         </ComboboxList>
-        <ComboboxEmpty>{i18n.t("translationHub.noLanguagesFound")}</ComboboxEmpty>
+        <ComboboxEmpty>{i18n.t("popup.languageSelector.noLanguagesFound")}</ComboboxEmpty>
       </ComboboxContent>
     </Combobox>
   )

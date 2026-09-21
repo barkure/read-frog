@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Icon } from "@iconify/react"
+import { IconFileImport, IconX } from "@tabler/icons-react"
 import { useAtom, useSetAtom } from "jotai"
 import { Activity } from "react"
 import { Button } from "@/components/ui/base-ui/button"
@@ -40,7 +40,7 @@ export function PromptList({ toolbarStart }: { toolbarStart?: ReactNode }) {
                 setSelectedPrompts([])
               }}
             >
-              <Icon icon="tabler:x" className="size-4" />
+              <IconX className="size-4" />
               {i18n.t("options.translation.personalizedPrompts.exportPrompt.cancel")}
             </Button>
             <ExportPrompts />
@@ -52,7 +52,7 @@ export function PromptList({ toolbarStart }: { toolbarStart?: ReactNode }) {
               onClick={() => setIsExportMode(true)}
               disabled={patterns.length === 0}
             >
-              <Icon icon="tabler:file-import" className="size-4" />
+              <IconFileImport className="size-4" />
               {i18n.t("options.translation.personalizedPrompts.export")}
             </Button>
             <ConfigurePrompt />

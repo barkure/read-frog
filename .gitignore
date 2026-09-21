@@ -16,9 +16,6 @@ stats-*.json
 web-ext.config.ts
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -34,8 +31,6 @@ web-ext.config.ts
 
 coverage/
 .turbo/
-.nx/
-.claude/worktrees/
 
 tsconfig.local.json
 
@@ -47,3 +42,4 @@ scripts/output/
 
 reference/
 .gstack/
+.commandcode/

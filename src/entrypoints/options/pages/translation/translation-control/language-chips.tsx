@@ -1,5 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
-import { Icon } from "@iconify/react"
+import { IconX } from "@tabler/icons-react"
 import { Button } from "@/components/ui/base-ui/button"
 import { getLanguageLabel } from "@/utils/language-labels"
 import { cn } from "@/utils/styles/utils"
@@ -36,7 +36,7 @@ export function LanguageChips({
             className="hover:text-input-foreground size-4 hover:bg-input"
             onClick={() => onRemove(language)}
           >
-            <Icon icon="tabler:x" className="size-3" />
+            <IconX className="size-3" />
           </Button>
         </span>
       ))}

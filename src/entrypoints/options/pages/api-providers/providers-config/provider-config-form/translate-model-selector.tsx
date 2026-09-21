@@ -9,16 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/base-ui/select"
-import {
-  isCustomModelOnlyProvider,
-  isLLMProviderConfig,
-  isProtocolCompatibleLLMProviderConfig,
-  LLM_PROVIDER_MODELS,
-} from "@/types/config/provider"
+import { isLLMProviderConfig, LLM_PROVIDER_MODELS } from "@/types/config/provider"
 import { i18n } from "@/utils/i18n"
-import { resolveModelId } from "@/utils/providers/model-id"
-import { ModelSuggestionButton } from "./components/model-suggestion-button"
-import { ProviderOptionsRecommendationTrigger } from "./components/provider-options-recommendation-trigger"
 import { withForm } from "./form"
 
 export const TranslateModelSelector = withForm({
@@ -28,21 +20,7 @@ export const TranslateModelSelector = withForm({
     const autosave = useAutosaveContext()
     if (!isLLMProviderConfig(providerConfig)) return null
 
-    const modelId = resolveModelId(providerConfig.model)
     const { isCustomModel, customModel, model } = providerConfig.model
-
-    const applyRecommendedProviderOptions = (options: Record<string, unknown>) => {
-      autosave.edit(() => form.setFieldValue("providerOptions", options), { immediate: true })
-    }
-
-    const recommendationTrigger = (
-      <ProviderOptionsRecommendationTrigger
-        providerId={providerConfig.id}
-        modelId={modelId}
-        currentProviderOptions={providerConfig.providerOptions}
-        onApply={applyRecommendedProviderOptions}
-      />
-    )
 
     return (
       <div>
@@ -51,21 +29,6 @@ export const TranslateModelSelector = withForm({
             {(field) => (
               <field.InputFieldAutoSave
                 label={i18n.t("options.apiProviders.form.models.label")}
-                labelExtra={
-                  <div className="flex items-center gap-2">
-                    {recommendationTrigger}
-                    {isProtocolCompatibleLLMProviderConfig(providerConfig) && (
-                      <ModelSuggestionButton
-                        providerConfig={providerConfig}
-                        onSelect={(selectedModel) => {
-                          autosave.edit(() => field.handleChange(selectedModel), {
-                            immediate: true,
-                          })
-                        }}
-                      />
-                    )}
-                  </div>
-                }
                 value={customModel ?? ""}
               />
             )}
@@ -73,10 +36,7 @@ export const TranslateModelSelector = withForm({
         ) : (
           <form.AppField name="model.model">
             {(field) => (
-              <field.SelectFieldAutoSave
-                label={i18n.t("options.apiProviders.form.models.label")}
-                labelExtra={recommendationTrigger}
-              >
+              <field.SelectFieldAutoSave label={i18n.t("options.apiProviders.form.models.label")}>
                 <SelectTrigger className="w-full">
                   <SelectValue
                     placeholder={i18n.t("options.apiProviders.form.models.translate.placeholder")}
@@ -95,7 +55,7 @@ export const TranslateModelSelector = withForm({
             )}
           </form.AppField>
         )}
-        {!isCustomModelOnlyProvider(providerConfig.provider) && (
+        {
           <form.Field name="model.isCustomModel">
             {(field) => (
               <div className="mt-2.5 flex items-center space-x-2">
@@ -121,7 +81,7 @@ export const TranslateModelSelector = withForm({
               </div>
             )}
           </form.Field>
-        )}
+        }
       </div>
     )
   },

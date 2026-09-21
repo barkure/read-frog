@@ -1,23 +1,16 @@
 import type { Config } from "@/types/config/config"
 import type { FloatingButtonSide } from "@/types/config/floating-button"
-import type { SelectionToolbarCustomAction } from "@/types/config/selection-toolbar"
 import type { PageTranslateRange } from "@/types/config/translate"
-import { BUILT_IN_AI_PROVIDER_ID } from "@/utils/providers/provider-registry"
-import { BUILT_IN_DICTIONARY_ACTION_ID } from "./custom-action"
-import { CUSTOM_ACTION_TEMPLATES } from "./custom-action-templates"
-import { DEFAULT_GLOSSARY_CONFIG } from "./glossary"
 import {
   DEFAULT_SUBTITLE_TRANSLATE_PROMPTS_CONFIG,
   DEFAULT_TRANSLATE_PROMPTS_CONFIG,
 } from "./prompt"
 import {
   buildDefaultProviderConfigList,
-  DEFAULT_PROVIDER_CONFIG,
   DEFAULT_PROVIDER_CONFIG_LIST,
   MICROSOFT_TRANSLATE_PROVIDER_ID,
 } from "./providers"
 import { DEFAULT_SELECTION_OVERLAY_OPACITY } from "./selection"
-import { DEFAULT_SIDE_CONTENT_WIDTH } from "./side"
 import {
   DEFAULT_BACKGROUND_OPACITY,
   DEFAULT_DISPLAY_MODE,
@@ -41,42 +34,16 @@ import {
   DEFAULT_SELECTION_TRANSLATION_SHORTCUT_KEY,
   DEFAULT_TRANSLATION_MODE_SHORTCUT_KEY,
 } from "./translate"
-import { DEFAULT_TRANSLATION_HUB_SHORTCUT_KEY } from "./translation-hub"
 import { TRANSLATION_NODE_STYLE_ON_INSTALLED } from "./translation-node-style"
-import { DEFAULT_TTS_CONFIG } from "./tts"
 
 export const CONFIG_STORAGE_KEY = "config"
-export const LAST_SYNCED_CONFIG_STORAGE_KEY = "lastSyncedConfig"
-export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 
 export const THEME_STORAGE_KEY = "theme"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 101
+export const CONFIG_SCHEMA_VERSION = 102
 
 export const DEFAULT_FLOATING_BUTTON_POSITION = 0.66
 export const DEFAULT_FLOATING_BUTTON_SIDE: FloatingButtonSide = "right"
-
-/**
- * Build the code-owned Dictionary action definition in the current UI locale.
- * Only enabled/provider/Notebase state is persisted; callers merge those mutable
- * fields onto this definition at read time.
- */
-export function createDefaultDictionaryAction(): SelectionToolbarCustomAction | null {
-  const template = CUSTOM_ACTION_TEMPLATES.find((t) => t.id === "dictionary")
-  if (!template) return null
-
-  const action = template.createAction(BUILT_IN_AI_PROVIDER_ID)
-  return {
-    ...action,
-    id: BUILT_IN_DICTIONARY_ACTION_ID,
-    outputSchema: action.outputSchema.map((field) => ({
-      ...field,
-      id: field.id.startsWith("dictionary-")
-        ? `default-${field.id}`
-        : `default-dictionary-${field.id}`,
-    })),
-  }
-}
 
 export const DEFAULT_CONFIG: Config = {
   language: {
@@ -128,13 +95,11 @@ export const DEFAULT_CONFIG: Config = {
   languageDetection: {
     mode: "basic",
   },
-  tts: DEFAULT_TTS_CONFIG,
   floatingButton: {
     enabled: true,
     position: DEFAULT_FLOATING_BUTTON_POSITION,
     side: DEFAULT_FLOATING_BUTTON_SIDE,
     disabledFloatingButtonPatterns: [],
-    clickAction: "translate",
     locked: false,
   },
   selectionToolbar: {
@@ -147,31 +112,7 @@ export const DEFAULT_CONFIG: Config = {
         providerId: MICROSOFT_TRANSLATE_PROVIDER_ID,
         shortcut: DEFAULT_SELECTION_TRANSLATION_SHORTCUT_KEY,
       },
-      speak: {
-        enabled: true,
-      },
     },
-    builtInActions: {
-      dictionary: {
-        enabled: true,
-        providerId: BUILT_IN_AI_PROVIDER_ID,
-      },
-    },
-    customActions: [],
-    noteSuggestion: {
-      enabled: true,
-      actionId: BUILT_IN_DICTIONARY_ACTION_ID,
-      // Fresh installs always carry the OpenAI default provider; suggestions
-      // start working the moment the user adds their key, with no hosted plan
-      // requirement attached.
-      providerId: DEFAULT_PROVIDER_CONFIG.openai.id,
-    },
-  },
-  sideContent: {
-    width: DEFAULT_SIDE_CONTENT_WIDTH,
-  },
-  betaExperience: {
-    enabled: false,
   },
   contextMenu: {
     enabled: true,
@@ -231,10 +172,6 @@ export const DEFAULT_CONFIG: Config = {
     disabledBuiltInRules: [],
   },
   uiLanguage: "auto",
-  translationHub: {
-    shortcut: DEFAULT_TRANSLATION_HUB_SHORTCUT_KEY,
-  },
-  glossary: { ...DEFAULT_GLOSSARY_CONFIG },
 }
 
 /**
@@ -246,16 +183,6 @@ export function buildFreshDefaultConfig(): Config {
   return {
     ...DEFAULT_CONFIG,
     providersConfig: buildDefaultProviderConfigList(),
-    selectionToolbar: {
-      ...DEFAULT_CONFIG.selectionToolbar,
-      builtInActions: {
-        dictionary: {
-          enabled: true,
-          providerId: BUILT_IN_AI_PROVIDER_ID,
-        },
-      },
-      customActions: [],
-    },
   }
 }
 

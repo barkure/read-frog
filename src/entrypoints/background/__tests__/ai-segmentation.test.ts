@@ -30,7 +30,7 @@ vi.mock("@/utils/logger", () => ({
 // that actually has a model to prompt.
 const providerRef = {
   kind: "local" as const,
-  config: { id: "openai-default", provider: "openai" } as never,
+  config: { id: "deepseek-default", provider: "deepseek" } as never,
 }
 const jsonContent = JSON.stringify([{ s: 1000, e: 2000, t: "hello world" }])
 

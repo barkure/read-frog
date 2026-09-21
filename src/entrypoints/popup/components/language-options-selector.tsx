@@ -1,9 +1,8 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { LanguageItem } from "@/components/language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-import { Icon } from "@iconify/react"
 import { langCodeISO6393Schema } from "@read-frog/definitions"
-import { IconChevronDown } from "@tabler/icons-react"
+import { IconArrowRight, IconChevronDown } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useMemo } from "react"
 import { filterLanguage } from "@/components/language-combobox-options"
@@ -130,7 +129,7 @@ export default function LanguageOptionsSelector() {
         <ComboboxContent className="w-72 rounded-lg shadow-md">
           <ComboboxInput
             showTrigger={false}
-            placeholder={i18n.t("translationHub.searchLanguages")}
+            placeholder={i18n.t("popup.languageSelector.searchLanguages")}
           />
           <ComboboxList>
             {(item: LanguageItem) => (
@@ -140,10 +139,10 @@ export default function LanguageOptionsSelector() {
               </ComboboxItem>
             )}
           </ComboboxList>
-          <ComboboxEmpty>{i18n.t("translationHub.noLanguagesFound")}</ComboboxEmpty>
+          <ComboboxEmpty>{i18n.t("popup.languageSelector.noLanguagesFound")}</ComboboxEmpty>
         </ComboboxContent>
       </Combobox>
-      <Icon icon="tabler:arrow-right" className="h-4 w-4 text-neutral-500" />
+      <IconArrowRight className="h-4 w-4 text-neutral-500" />
       <Combobox
         value={currentTargetItem}
         onValueChange={handleTargetLangChange}
@@ -159,7 +158,7 @@ export default function LanguageOptionsSelector() {
         <ComboboxContent className="w-72 rounded-lg shadow-md">
           <ComboboxInput
             showTrigger={false}
-            placeholder={i18n.t("translationHub.searchLanguages")}
+            placeholder={i18n.t("popup.languageSelector.searchLanguages")}
           />
           <ComboboxList>
             {(item: LanguageItem<LangCodeISO6393>) => (
@@ -168,7 +167,7 @@ export default function LanguageOptionsSelector() {
               </ComboboxItem>
             )}
           </ComboboxList>
-          <ComboboxEmpty>{i18n.t("translationHub.noLanguagesFound")}</ComboboxEmpty>
+          <ComboboxEmpty>{i18n.t("popup.languageSelector.noLanguagesFound")}</ComboboxEmpty>
         </ComboboxContent>
       </Combobox>
     </div>

@@ -34,12 +34,12 @@ describe("navigation", () => {
   })
 
   it("opens the options page with a hash route", async () => {
-    await openOptionsPage({ route: "/custom-actions?actionId=action-1" })
+    await openOptionsPage({ route: "/page-translation?section=translation-mode" })
 
     expect(browser.runtime.openOptionsPage).not.toHaveBeenCalled()
     expect(browser.tabs.create).toHaveBeenCalledWith({
       active: true,
-      url: "chrome-extension://test-extension-id/options.html#/custom-actions?actionId=action-1",
+      url: "chrome-extension://test-extension-id/options.html#/page-translation?section=translation-mode",
     })
   })
 })
@@ -52,14 +52,14 @@ describe("provider config routes", () => {
   })
 
   it("addresses a provider by type", () => {
-    expect(buildProviderTypeConfigRoute("openai")).toBe(
-      "/api-providers?section=provider-config&providerType=openai",
+    expect(buildProviderTypeConfigRoute("deepseek")).toBe(
+      "/api-providers?section=provider-config&providerType=deepseek",
     )
   })
 
   it("asks for the API key highlight only when requested", () => {
-    expect(buildProviderTypeConfigRoute("openai", { highlightApiKey: true })).toBe(
-      "/api-providers?section=provider-config&providerType=openai&highlight=apiKey",
+    expect(buildProviderTypeConfigRoute("deepseek", { highlightApiKey: true })).toBe(
+      "/api-providers?section=provider-config&providerType=deepseek&highlight=apiKey",
     )
     expect(buildProviderConfigRoute("provider-1", { highlightApiKey: false })).not.toContain(
       "highlight",

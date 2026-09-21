@@ -1,5 +1,5 @@
 import type { InputTranslationLang } from "@/types/config/config"
-import { Icon } from "@iconify/react"
+import { IconArrowRight, IconArrowsExchange } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { Activity } from "react"
 import { Switch } from "@/components/ui/base-ui/switch"
@@ -58,16 +58,10 @@ export function LanguagesSection() {
 
           <div className="relative size-4 shrink-0">
             <Activity mode={inputTranslation.enableCycle ? "visible" : "hidden"}>
-              <Icon
-                icon="tabler:arrows-exchange"
-                className="absolute inset-0 size-4 text-muted-foreground"
-              />
+              <IconArrowsExchange className="absolute inset-0 size-4 text-muted-foreground" />
             </Activity>
             <Activity mode={inputTranslation.enableCycle ? "hidden" : "visible"}>
-              <Icon
-                icon="tabler:arrow-right"
-                className="absolute inset-0 size-4 text-muted-foreground"
-              />
+              <IconArrowRight className="absolute inset-0 size-4 text-muted-foreground" />
             </Activity>
           </div>
 

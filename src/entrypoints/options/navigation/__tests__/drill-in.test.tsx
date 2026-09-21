@@ -19,7 +19,7 @@ function ParentPage() {
 }
 
 function renderDetailPage({ drilledIn }: { drilledIn: boolean }) {
-  const detailEntry = { pathname: "/preference/config-backup" }
+  const detailEntry = { pathname: "/preference/extension-activation" }
   return render(
     <MemoryRouter
       initialEntries={
@@ -31,7 +31,7 @@ function renderDetailPage({ drilledIn }: { drilledIn: boolean }) {
     >
       <Routes>
         <Route path="/preference" element={<ParentPage />} />
-        <Route path="/preference/config-backup" element={<DetailPage />} />
+        <Route path="/preference/extension-activation" element={<DetailPage />} />
       </Routes>
     </MemoryRouter>,
   )

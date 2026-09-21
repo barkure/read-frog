@@ -1,10 +1,7 @@
 import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
 import { HOTKEYS } from "@/utils/constants/hotkeys"
-import {
-  BUILT_IN_PAGE_TRANSLATE_PROMPT_IDS,
-  DEFAULT_TRANSLATE_PROMPT_ID,
-} from "@/utils/constants/prompt"
+import { BUILT_IN_PAGE_TRANSLATE_PROMPT_IDS } from "@/utils/constants/prompt"
 import {
   MAX_PRELOAD_MARGIN,
   MAX_PRELOAD_THRESHOLD,
@@ -68,75 +65,12 @@ export const translatePromptObjSchema = z.object({
 })
 export type TranslatePromptObj = z.infer<typeof translatePromptObjSchema>
 
-const storedPromptIdSchema = z.preprocess(
-  (promptId) => (promptId === null ? DEFAULT_TRANSLATE_PROMPT_ID : promptId),
-  z.string(),
-)
-
-function normalizeLegacyReservedPromptIds(value: unknown, builtInPromptIds: readonly string[]) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return value
-
-  const promptConfig = value as Record<string, unknown>
-  if (!Array.isArray(promptConfig.patterns)) return value
-
-  const reservedIds = new Set(builtInPromptIds)
-  const usedIds = new Set(builtInPromptIds)
-  for (const pattern of promptConfig.patterns) {
-    if (
-      pattern &&
-      typeof pattern === "object" &&
-      !Array.isArray(pattern) &&
-      typeof (pattern as Record<string, unknown>).id === "string" &&
-      !reservedIds.has((pattern as Record<string, unknown>).id as string)
-    ) {
-      usedIds.add((pattern as Record<string, unknown>).id as string)
-    }
-  }
-
-  let selectedCustomId: string | undefined
-  let changed = false
-  const patterns = promptConfig.patterns.map((pattern) => {
-    if (!pattern || typeof pattern !== "object" || Array.isArray(pattern)) return pattern
-
-    const id = (pattern as Record<string, unknown>).id
-    if (typeof id !== "string" || !reservedIds.has(id)) return pattern
-
-    const baseId = `${id}-custom`
-    let renamedId = baseId
-    let suffix = 2
-    while (usedIds.has(renamedId)) {
-      renamedId = `${baseId}-${suffix}`
-      suffix += 1
-    }
-    usedIds.add(renamedId)
-    changed = true
-
-    // Before v092, a selected reserved-looking id could only identify the
-    // custom prompt. Preserve the first match, exactly like the migration.
-    if (selectedCustomId === undefined && promptConfig.promptId === id) {
-      selectedCustomId = renamedId
-    }
-
-    return { ...pattern, id: renamedId }
-  })
-
-  if (!changed) return value
-  return {
-    ...promptConfig,
-    promptId: selectedCustomId ?? promptConfig.promptId,
-    patterns,
-  }
-}
-
 export function createCustomPromptsConfigSchema(builtInPromptIds: readonly string[]) {
   const builtInPromptIdSet = new Set(builtInPromptIds)
 
-  const normalizedPromptConfigSchema = z
+  return z
     .object({
-      // `null` was the persisted default through v091. Keep accepting it at
-      // read boundaries so an options page opened before background migration
-      // cannot replace the user's config with the full product defaults.
-      promptId: storedPromptIdSchema,
+      promptId: z.string(),
       patterns: z.array(translatePromptObjSchema),
     })
     .superRefine((data, ctx) => {
@@ -159,20 +93,11 @@ export function createCustomPromptsConfigSchema(builtInPromptIds: readonly strin
         })
       }
     })
-
-  return z.preprocess(
-    (value) => normalizeLegacyReservedPromptIds(value, builtInPromptIds),
-    normalizedPromptConfigSchema,
-  )
 }
 
 export const pageCustomPromptsConfigSchema = createCustomPromptsConfigSchema(
   BUILT_IN_PAGE_TRANSLATE_PROMPT_IDS,
 )
-
-// Backwards-compatible export for the shared prompt configurator. Page
-// translation is the only surface with more than one built-in prompt.
-export const customPromptsConfigSchema = pageCustomPromptsConfigSchema
 
 export const pageTranslationShortcutSchema = z.string().superRefine((shortcut, ctx) => {
   if (isPageTranslationShortcutEmpty(shortcut)) {
@@ -195,11 +120,7 @@ export const translateConfigSchema = z.object({
   node: z.object({
     enabled: z.boolean(),
     hotkey: z.enum(HOTKEYS),
-    // Keep the migration as the durable upgrade path, but also accept pre-v090
-    // config in UI contexts that can load before the background migration runs.
-    // Otherwise storageAdapter falls back to the full DEFAULT_CONFIG and a UI
-    // write can persist that fallback over the user's settings.
-    forceRetranslation: z.boolean().default(false),
+    forceRetranslation: z.boolean(),
   }),
   page: z.object({
     range: pageTranslateRangeSchema,
@@ -214,7 +135,7 @@ export const translateConfigSchema = z.object({
     skipLanguages: z.array(langCodeISO6393Schema),
   }),
   enableAIContentAware: z.boolean(),
-  customPromptsConfig: customPromptsConfigSchema,
+  customPromptsConfig: pageCustomPromptsConfigSchema,
   requestQueueConfig: requestQueueConfigSchema,
   batchQueueConfig: batchQueueConfigSchema,
   translationNodeStyle: translationNodeStyleConfigSchema,

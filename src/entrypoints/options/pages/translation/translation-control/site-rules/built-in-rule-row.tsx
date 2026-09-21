@@ -1,5 +1,5 @@
 import type { SiteRule } from "@/types/config/site-rules"
-import { Icon } from "@iconify/react"
+import { IconCheck, IconChevronRight, IconCopy } from "@tabler/icons-react"
 import { useAtom } from "jotai"
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/base-ui/badge"
@@ -48,10 +48,7 @@ export function BuiltInRuleRow({ rule }: { rule: SiteRule }) {
     <Collapsible className="group/site-rule">
       <div className="flex items-center gap-2 px-3 py-2">
         <CollapsibleTrigger className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left">
-          <Icon
-            icon="tabler:chevron-right"
-            className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/site-rule:rotate-90"
-          />
+          <IconChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/site-rule:rotate-90" />
           <code className="shrink-0 text-xs">{rule.id}</code>
           {rule.description && (
             <span className="truncate text-xs text-muted-foreground">{rule.description}</span>
@@ -73,11 +70,7 @@ export function BuiltInRuleRow({ rule }: { rule: SiteRule }) {
           aria-label={copied ? i18n.t("action.copied") : i18n.t("action.copy")}
           onClick={handleCopy}
         >
-          {copied ? (
-            <Icon icon="tabler:check" className="text-green-500" />
-          ) : (
-            <Icon icon="tabler:copy" />
-          )}
+          {copied ? <IconCheck className="text-green-500" /> : <IconCopy />}
         </Button>
         <Switch
           checked={enabled}

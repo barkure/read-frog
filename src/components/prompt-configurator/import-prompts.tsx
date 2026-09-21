@@ -1,5 +1,5 @@
 import type { PromptConfigList } from "./utils/prompt-file"
-import { Icon } from "@iconify/react/dist/iconify.js"
+import { IconFileImport } from "@tabler/icons-react"
 import { useAtom } from "jotai"
 import { useId, useRef } from "react"
 import { Button } from "@/components/ui/base-ui/button"
@@ -22,8 +22,6 @@ export function ImportPrompts() {
     const patterns = list.map((item) => ({
       ...item,
       id: getRandomUUID(),
-      // Backwards compatibility: add systemPrompt if missing from imported file
-      systemPrompt: item.systemPrompt ?? "",
     }))
 
     setConfig({
@@ -70,7 +68,7 @@ export function ImportPrompts() {
   return (
     <Button ref={importButtonRef} variant="outline" className="p-0">
       <Label htmlFor={inputId} className="w-full px-3">
-        <Icon icon="tabler:file-import" className="size-4" />
+        <IconFileImport className="size-4" />
         {i18n.t("options.translation.personalizedPrompts.import")}
       </Label>
       <Input type="file" id={inputId} className="hidden" accept=".json" onChange={importPrompts} />

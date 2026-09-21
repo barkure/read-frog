@@ -1,5 +1,5 @@
 import type { TranslationMode as TranslationModeType } from "@/types/config/translate"
-import { Icon } from "@iconify/react"
+import { IconLanguage, IconTextResize } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { Button } from "@/components/ui/base-ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/base-ui/kbd"
@@ -11,11 +11,9 @@ import { isPageTranslationShortcutEmpty } from "@/utils/page-translation-shortcu
 import { getTranslationOnlyBlockedReason } from "@/utils/providers/translation-only-gate"
 import { cn } from "@/utils/styles/utils"
 
-const TABLER_ICON_STROKE_WIDTH_CLASS = "[&_path]:[stroke-width:1.2]"
-
-const MODE_ICON: Record<TranslationModeType, { icon: string; className?: string }> = {
-  bilingual: { icon: "garden:translation-exists-stroke-16" },
-  translationOnly: { icon: "tabler:text-resize", className: TABLER_ICON_STROKE_WIDTH_CLASS },
+const MODE_ICON = {
+  bilingual: IconLanguage,
+  translationOnly: IconTextResize,
 }
 
 const NEXT_MODE: Record<TranslationModeType, TranslationModeType> = {
@@ -38,7 +36,7 @@ export default function TranslationModeSelector() {
   const [translateConfig, setTranslateConfig] = useAtom(configFieldsAtomMap.pageTranslation)
   const config = useAtomValue(configAtom)
   const currentMode = translateConfig.mode
-  const currentModeIcon = MODE_ICON[currentMode]
+  const CurrentModeIcon = MODE_ICON[currentMode]
   const nextMode = NEXT_MODE[currentMode]
   const tooltipKey = MODE_TOOLTIP_KEY[currentMode]
   // Entering translationOnly is blocked while the page-translate provider has
@@ -73,10 +71,7 @@ export default function TranslationModeSelector() {
           />
         }
       >
-        <Icon
-          {...currentModeIcon}
-          className={cn(currentModeIcon.className, currentMode === "translationOnly" && "size-4.5")}
-        />
+        <CurrentModeIcon className="size-4.5" strokeWidth={1.2} />
       </TooltipTrigger>
       <TooltipContent>
         {/* The blocked-reason line is much longer than the mode labels; let it

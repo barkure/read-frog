@@ -1,13 +1,11 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
-import type { GlossaryTargetLang } from "@/utils/glossary/target-language"
 import { langCodeISO6393Schema } from "@read-frog/definitions"
-import { ALL_LANGUAGES } from "@/utils/glossary/target-language"
 import { getLanguageLabel, getLanguageName } from "@/utils/language-labels"
 
 /**
  * `T` is only constrained to `string` so a surface can offer a row that is not a
- * language — `auto` below, `all` for the glossary. Every such row is pinned
- * ahead of the languages and named by its caller.
+ * language — `auto` below. Such a row is pinned ahead of the languages and named
+ * by its caller.
  */
 export interface LanguageItem<T extends string = LangCodeISO6393 | "auto"> {
   value: T
@@ -45,20 +43,6 @@ export function getLanguageItems(
   }
 
   return items
-}
-
-/**
- * The languages a glossary term can be written for, with "every language" pinned
- * first — the value a term carries when its wording is language-independent.
- *
- * Deliberately NOT a variant of `getLanguageItems`: a glossary has no page to
- * detect a language from, and offering `auto` beside `all` would put two rows
- * that both mean "not a specific language" next to each other.
- */
-export function getGlossaryTargetLanguageItems(
-  allLabel: string,
-): LanguageItem<GlossaryTargetLang>[] {
-  return [{ value: ALL_LANGUAGES, label: allLabel }, ...getTargetLanguageItems()]
 }
 
 export function filterLanguage(item: LanguageItem<string>, query: string): boolean {

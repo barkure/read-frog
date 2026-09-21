@@ -7,9 +7,10 @@
  * or instruction-following-weak models. Field order matters: `reason` after
  * `code` would be a post-hoc justification with no accuracy benefit.
  *
- * Hard reasoning (thinking mode) is intentionally not used: detection sits on
- * the latency-sensitive TTS path, the task is simple, and reasoning toggles are
- * provider-specific while this prompt must stay provider-agnostic.
+ * Hard reasoning (thinking mode) is intentionally not requested: detection sits
+ * on the language detection path, the task is simple, and this prompt must
+ * stay provider-agnostic. Whatever the provider's own default thinking mode is,
+ * this prompt asks for the answer in one field rather than a deliberation.
  */
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import { LANG_CODE_TO_EN_NAME, langCodeISO6393Schema } from "@read-frog/definitions"

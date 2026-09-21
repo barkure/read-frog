@@ -46,11 +46,12 @@ describe("selectionToolbarFooterContent", () => {
       provider: "google-translate",
     },
     {
-      id: "deepl-default",
-      name: "DeepL",
+      id: "deepseek-default",
+      name: "DeepSeek",
       enabled: true,
-      provider: "deepl",
+      provider: "deepseek",
       apiKey: "test-key",
+      model: { model: "deepseek-flash", isCustomModel: false, customModel: null },
     },
   ]
 
@@ -79,7 +80,7 @@ describe("selectionToolbarFooterContent", () => {
       await Promise.resolve()
     })
 
-    expect(onProviderChange).toHaveBeenCalledWith("deepl-default")
+    expect(onProviderChange).toHaveBeenCalledWith("deepseek-default")
     expect(screen.getByText(i18n.t("action.contextDetailsTitleLabel"))).toBeInTheDocument()
     expect(screen.getByText(i18n.t("action.contextDetailsParagraphsLabel"))).toBeInTheDocument()
     expect(screen.getByText("Page Title")).toBeInTheDocument()

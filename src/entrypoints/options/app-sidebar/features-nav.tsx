@@ -1,6 +1,5 @@
-import { Icon } from "@iconify/react"
+import { IconChevronRight, IconLanguage, IconLayersIntersect } from "@tabler/icons-react"
 import { Link, useLocation } from "react-router"
-import { browser } from "#imports"
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,7 +16,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/base-ui/sidebar"
-import { TRANSLATION_HUB_PAGE_PATH } from "@/utils/constants/translation-hub"
 import { i18n } from "@/utils/i18n"
 
 const OVERLAY_TOOLS_PATHS = ["/floating-button", "/selection-toolbar", "/context-menu"] as const
@@ -35,26 +33,12 @@ export function FeaturesNav() {
   const { pathname } = useLocation()
   const isOverlayToolsActive = OVERLAY_TOOLS_PATHS.includes(pathname)
   const isTranslationActive = TRANSLATION_PATHS.some((path) => pathname.startsWith(path))
-  // `startsWith`, so the group stays lit while a single glossary is open on
-  // `/advanced/glossary/:glossaryId`.
-  const isAdvancedActive = pathname.startsWith("/advanced")
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{i18n.t("options.sidebar.features")}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link to="/custom-actions" />}
-              isActive={pathname === "/custom-actions"}
-              tooltip={i18n.t("options.selectionToolbar.customActions.title")}
-            >
-              <Icon icon="tabler:sparkles" />
-              <span>{i18n.t("options.selectionToolbar.customActions.title")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
           <Collapsible defaultOpen={isTranslationActive} className="group/collapsible">
             <SidebarMenuItem>
               <CollapsibleTrigger
@@ -67,12 +51,9 @@ export function FeaturesNav() {
               >
                 {/* Page translation's own icon stands for the group: it is the
                     feature the other two are variations of. */}
-                <Icon icon="ri:translate" />
+                <IconLanguage />
                 <span>{i18n.t("options.sidebar.translation")}</span>
-                <Icon
-                  icon="tabler:chevron-right"
-                  className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-                />
+                <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
@@ -115,12 +96,9 @@ export function FeaturesNav() {
                   />
                 }
               >
-                <Icon icon="tabler:layers-intersect" />
+                <IconLayersIntersect />
                 <span>{i18n.t("options.overlayTools.title")}</span>
-                <Icon
-                  icon="tabler:chevron-right"
-                  className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-                />
+                <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
@@ -146,64 +124,6 @@ export function FeaturesNav() {
                       isActive={pathname === "/context-menu"}
                     >
                       <span>{i18n.t("options.contextMenu.title")}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link to="/tts" />}
-              isActive={pathname === "/tts"}
-              tooltip={i18n.t("options.tts.title")}
-            >
-              <Icon icon="tabler:speakerphone" />
-              <span>{i18n.t("options.tts.title")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={
-                <a
-                  href={browser.runtime.getURL(TRANSLATION_HUB_PAGE_PATH)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-              tooltip={i18n.t("options.tools.translationHub")}
-            >
-              <Icon icon="tabler:language-hiragana" />
-              <span>{i18n.t("options.tools.translationHub")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <Collapsible defaultOpen={isAdvancedActive} className="group/collapsible">
-            <SidebarMenuItem>
-              <CollapsibleTrigger
-                render={
-                  <SidebarMenuButton
-                    isActive={isAdvancedActive}
-                    tooltip={i18n.t("options.advanced.title")}
-                  />
-                }
-              >
-                <Icon icon="tabler:flask" />
-                <span>{i18n.t("options.advanced.title")}</span>
-                <Icon
-                  icon="tabler:chevron-right"
-                  className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton
-                      render={<Link to="/advanced/glossary" />}
-                      isActive={pathname.startsWith("/advanced/glossary")}
-                    >
-                      <span>{i18n.t("options.advanced.glossary.title")}</span>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 </SidebarMenuSub>

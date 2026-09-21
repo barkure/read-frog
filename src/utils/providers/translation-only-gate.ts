@@ -10,8 +10,7 @@ import { i18n } from "@/utils/i18n"
  * pages (Microsoft's unauthenticated endpoint eats tags and translates attribute
  * names — see api/microsoft.ts). The combination is blocked from forming instead:
  * provider pickers hide these while translationOnly is active, mode controls refuse
- * to enter translationOnly while one is active, and migration v093 rewrites configs
- * that already contain the pairing.
+ * to enter translationOnly while one is active.
  *
  * This list is the whole knob. Every mode control renders its reason through
  * `getTranslationOnlyBlockedReason`, which names the provider from PROVIDER_ITEMS,

@@ -1,5 +1,5 @@
 import type { AddPatternResult } from "@/hooks/use-pattern-list"
-import { Icon } from "@iconify/react"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/base-ui/button"
 import { Input } from "@/components/ui/base-ui/input"
@@ -76,7 +76,7 @@ export function PatternsTable({
           onKeyDown={handleKeyPress}
         />
         <Button size="icon" variant="outline" onClick={handleAddPattern}>
-          <Icon icon="tabler:plus" />
+          <IconPlus />
         </Button>
       </div>
       {/* Nothing to head up until there is a row, so the whole table drops out.
@@ -107,7 +107,7 @@ export function PatternsTable({
                         size="icon-xs"
                         onClick={() => onRemovePattern(pattern)}
                       >
-                        <Icon icon="tabler:trash" className="size-4" />
+                        <IconTrash className="size-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

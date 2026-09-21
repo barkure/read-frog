@@ -1,5 +1,7 @@
 import type { TranslatePromptObj } from "@/types/config/translate"
 import { saveAs } from "file-saver"
+import { z } from "zod"
+import { translatePromptObjSchema } from "@/types/config/translate"
 import { APP_NAME } from "@/utils/constants/app"
 
 export type PromptConfig = Omit<TranslatePromptObj, "id">
@@ -7,12 +9,10 @@ export type PromptConfigList = PromptConfig[]
 
 const PROMPTS_FILE = `${APP_NAME}_prompts`
 
-export function checkPromptConfig(list: PromptConfig[]) {
-  if (!Array.isArray(list)) {
-    return false
-  }
+const promptFileSchema = z.array(translatePromptObjSchema.omit({ id: true }))
 
-  return list.every((item) => item.name && item.prompt)
+export function checkPromptConfig(list: unknown): list is PromptConfigList {
+  return promptFileSchema.safeParse(list).success
 }
 
 export function downloadJSONFile(data: object) {

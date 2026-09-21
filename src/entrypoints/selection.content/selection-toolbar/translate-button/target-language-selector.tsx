@@ -61,7 +61,10 @@ export function TargetLanguageSelector() {
         align="end"
         className="w-72"
       >
-        <ComboboxInput showTrigger={false} placeholder={i18n.t("translationHub.searchLanguages")} />
+        <ComboboxInput
+          showTrigger={false}
+          placeholder={i18n.t("popup.languageSelector.searchLanguages")}
+        />
         <ComboboxList>
           {(item) => (
             <ComboboxItem key={item.value} value={item}>
@@ -69,7 +72,7 @@ export function TargetLanguageSelector() {
             </ComboboxItem>
           )}
         </ComboboxList>
-        <ComboboxEmpty>{i18n.t("translationHub.noLanguagesFound")}</ComboboxEmpty>
+        <ComboboxEmpty>{i18n.t("popup.languageSelector.noLanguagesFound")}</ComboboxEmpty>
       </ComboboxContent>
     </Combobox>
   )

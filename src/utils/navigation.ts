@@ -16,7 +16,7 @@ export const PROVIDER_QUERY_PARAM = "provider"
 
 /**
  * Names the provider *type* Provider Config should open, for links written by someone who cannot
- * know the id — an external site pointing at "your OpenAI provider". The first provider of that
+ * know the id — an external site pointing at "your DeepSeek provider". The first provider of that
  * type wins, and one is created when there is none.
  */
 export const PROVIDER_TYPE_QUERY_PARAM = "providerType"

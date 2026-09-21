@@ -6,10 +6,10 @@ describe("resolveModelId", () => {
     expect(
       resolveModelId({
         isCustomModel: false,
-        model: " gpt-4.1-mini ",
+        model: " deepseek-flash ",
         customModel: "",
-      } as unknown as Parameters<typeof resolveModelId>[0]),
-    ).toBe("gpt-4.1-mini")
+      }),
+    ).toBe("deepseek-flash")
   })
 
   it("returns a trimmed custom model id", () => {
@@ -17,12 +17,14 @@ describe("resolveModelId", () => {
       resolveModelId({
         isCustomModel: true,
         model: "",
-        customModel: " custom-model ",
-      } as unknown as Parameters<typeof resolveModelId>[0]),
-    ).toBe("custom-model")
+        customModel: " deepseek-v4-pro ",
+      }),
+    ).toBe("deepseek-v4-pro")
   })
 
   it("returns undefined when the selected field is empty", () => {
+    // A stored config can carry a missing customModel; the schema's `string | null` does not admit
+    // it, hence the cast rather than a type that would hide the case.
     expect(
       resolveModelId({
         isCustomModel: true,

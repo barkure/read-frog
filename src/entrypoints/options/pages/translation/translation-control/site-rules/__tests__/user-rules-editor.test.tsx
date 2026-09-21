@@ -122,47 +122,22 @@ describe("userRulesEditor", () => {
     ).toBeDisabled()
   })
 
-  it("saves pasted legacy selector fields using canonical names", async () => {
+  it("rejects pasted legacy selector fields without changing saved rules", async () => {
     const store = renderEditor()
-    const legacyRules = [
-      {
-        id: "legacy",
-        matches: "example.com",
-        forceBlockSelectors: [".block"],
-        forceInlineSelectors: [".inline"],
-      },
-    ]
-    const canonicalRules = [
-      {
-        id: "legacy",
-        matches: "example.com",
-        forceBlockNodeSelectors: [".block"],
-        forceBlockStyleSelectors: [".block"],
-        forceInlineStyleSelectors: [".inline"],
-      },
-    ]
-    const editor = screen.getByLabelText("site-rules-user-rules-editor")
-
-    fireEvent.change(editor, {
-      target: { value: JSON.stringify(legacyRules) },
-    })
-
     await advanceDebounce()
-
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-    const saveButton = screen.getByRole("button", {
-      name: "options.siteRules.userRules.saveButton",
+    const original = structuredClone(store.get(configAtom).siteRules.userRules)
+    fireEvent.change(screen.getByLabelText("site-rules-user-rules-editor"), {
+      target: {
+        value: JSON.stringify([
+          { id: "old", matches: "example.com", forceBlockSelectors: [".block"] },
+        ]),
+      },
     })
-    expect(saveButton).toBeEnabled()
-
-    await act(async () => {
-      fireEvent.click(saveButton)
-      await Promise.resolve()
-    })
-
-    expect(store.get(configAtom).siteRules.userRules).toEqual(canonicalRules)
-    expect(editor).toHaveValue(JSON.stringify(canonicalRules, null, 2))
-    expect(editor).not.toHaveValue(expect.stringContaining("forceBlockSelectors"))
-    expect(editor).not.toHaveValue(expect.stringContaining("forceInlineSelectors"))
+    await advanceDebounce()
+    expect(screen.getByRole("alert")).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "options.siteRules.userRules.saveButton" }),
+    ).toBeDisabled()
+    expect(store.get(configAtom).siteRules.userRules).toEqual(original)
   })
 })

@@ -5,23 +5,17 @@ import type { Config } from "@/types/config/config"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import TranslatePromptSelector from "@/entrypoints/popup/components/translate-prompt-selector"
-import { PromptSelector as TranslationHubPromptSelector } from "@/entrypoints/translation-hub/components/prompt-selector"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 
-const { providerRefAtom, selectedProvidersAtom, setTranslateMock, testState, translateAtom } =
-  vi.hoisted(() => ({
-    providerRefAtom: {},
-    selectedProvidersAtom: {},
-    setTranslateMock: vi.fn<(value: Partial<Config["pageTranslation"]>) => Promise<void>>(),
-    testState: {
-      pageTranslation: null as Config["pageTranslation"] | null,
-      pageTranslationProviderRef: null as
-        | { kind: "local"; config: { provider: string } }
-        | { kind: "system"; id: string; name: string; modelTier: "normal" | "advance" }
-        | null,
-    },
-    translateAtom: {},
-  }))
+const { providerRefAtom, setTranslateMock, testState, translateAtom } = vi.hoisted(() => ({
+  providerRefAtom: {},
+  setTranslateMock: vi.fn<(value: Partial<Config["pageTranslation"]>) => Promise<void>>(),
+  testState: {
+    pageTranslation: null as Config["pageTranslation"] | null,
+    pageTranslationProviderRef: null as { kind: "local"; config: { provider: string } } | null,
+  },
+  translateAtom: {},
+}))
 
 vi.mock("jotai", () => ({
   useAtom: (atom: object) => {
@@ -30,7 +24,6 @@ vi.mock("jotai", () => ({
   },
   useAtomValue: (atom: object) => {
     if (atom === providerRefAtom) return testState.pageTranslationProviderRef
-    if (atom === selectedProvidersAtom) return [{ provider: "mock-llm" }]
     throw new Error("Unexpected atom")
   },
 }))
@@ -41,10 +34,6 @@ vi.mock("@/utils/atoms/config", () => ({
 
 vi.mock("@/utils/atoms/provider", () => ({
   featureProviderRefAtom: () => providerRefAtom,
-}))
-
-vi.mock("@/entrypoints/translation-hub/atoms", () => ({
-  selectedProvidersAtom,
 }))
 
 vi.mock("@/types/config/provider", async (importOriginal) => ({
@@ -146,24 +135,6 @@ describe("translation prompt selectors", () => {
     })
   })
 
-  it("keeps prompt selection available for Built-in AI", () => {
-    testState.pageTranslationProviderRef = {
-      kind: "system",
-      id: "read-frog-free-ai",
-      name: "Built-in AI",
-      modelTier: "normal",
-    }
-    render(<TranslatePromptSelector />)
-
-    fireEvent.click(screen.getByRole("option", { name: "Custom" }))
-    expect(setTranslateMock).toHaveBeenCalledWith({
-      customPromptsConfig: {
-        ...testState.pageTranslation!.customPromptsConfig,
-        promptId: "custom",
-      },
-    })
-  })
-
   it("keeps prompt selection hidden for a local translation-only provider", () => {
     testState.pageTranslationProviderRef = {
       kind: "local",
@@ -173,17 +144,5 @@ describe("translation prompt selectors", () => {
     render(<TranslatePromptSelector />)
 
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
-  })
-
-  it("shows the selected built-in and uses the same order in Translation Hub", () => {
-    testState.pageTranslation!.customPromptsConfig.promptId = "precision-rewrite"
-    render(<TranslationHubPromptSelector />)
-
-    expect(screen.getByRole("combobox")).toHaveTextContent("Deep polish")
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Default",
-      "Deep polish",
-      "Custom",
-    ])
   })
 })

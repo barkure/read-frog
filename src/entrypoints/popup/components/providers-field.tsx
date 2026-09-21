@@ -6,26 +6,18 @@ import { useAtomValue } from "jotai"
 import { useMemo } from "react"
 import { HelpTooltip } from "@/components/help-tooltip"
 import { FeatureProviderSelectorList } from "@/components/llm-providers/feature-provider-selector-list"
-import { useHostedAiStatus } from "@/components/llm-providers/use-hosted-ai-status"
 import { useTheme } from "@/components/providers/theme-provider"
 import { Avatar, AvatarGroup, AvatarGroupCount, AvatarImage } from "@/components/ui/base-ui/avatar"
 import { Button } from "@/components/ui/base-ui/button"
 import { Drawer, DrawerBody, DrawerContent, DrawerTrigger } from "@/components/ui/base-ui/drawer"
 import { configAtom, configFieldsAtomMap } from "@/utils/atoms/config"
 import { FEATURE_KEYS, FEATURE_PROVIDER_DEFS } from "@/utils/constants/feature-providers"
-import { getSelectionToolbarActions } from "@/utils/custom-actions"
 import { i18n } from "@/utils/i18n"
-import { isProviderIdDurablyUnusable } from "@/utils/providers/provider-availability"
-import { getProviderLogo, getProviderName } from "@/utils/providers/provider-display"
+import { getProviderLogo } from "@/utils/providers/provider-display"
 import { getSelectableProvidersForCapability } from "@/utils/providers/provider-registry"
 
 const VISIBLE_PROVIDER_COUNT = 5
 
-/**
- * The capability travels with the provider because usability is per slot: the
- * same built-in can be runnable for one feature and walled off for another,
- * since the plan funds features individually.
- */
 interface SelectedProviderSlot {
   provider: ProviderSelectorOption
   capability: ProviderCapability
@@ -52,35 +44,21 @@ function getSelectedProviderOptions(
     addProvider(featureKey, FEATURE_PROVIDER_DEFS[featureKey].getProviderId(config))
   }
 
-  for (const action of getSelectionToolbarActions(config.selectionToolbar)) {
-    if (action.enabled === false) {
-      continue
-    }
-    addProvider("customAction", action.providerId)
-  }
-
   return selectedProviders
 }
 
 function ProviderAvatarSummary({ slots }: { slots: SelectedProviderSlot[] }) {
   const { theme } = useTheme()
-  const { status } = useHostedAiStatus()
   const visibleSlots = slots.slice(0, VISIBLE_PROVIDER_COUNT)
   const remainingCount = slots.length - visibleSlots.length
   const providerKeyCounts = new Map<string, number>()
 
   return (
     <AvatarGroup>
-      {visibleSlots.map(({ provider, capability }) => {
-        const name = getProviderName(provider)
+      {visibleSlots.map(({ provider }) => {
+        const name = provider.name
         const providerKeyCount = providerKeyCounts.get(provider.id) ?? 0
         providerKeyCounts.set(provider.id, providerKeyCount + 1)
-        // Same treatment and the same predicate as the dropdowns this button
-        // opens: dimmed on durable account facts only, so a row the user could
-        // fix by signing in or upgrading reads differently from one that is
-        // merely out of quota. Otherwise these logos say "five features
-        // configured" to an account that can run none of them.
-        const unusable = isProviderIdDurablyUnusable(provider.id, capability, status)
 
         return (
           <Avatar
@@ -91,7 +69,7 @@ function ProviderAvatarSummary({ slots }: { slots: SelectedProviderSlot[] }) {
             <AvatarImage
               src={getProviderLogo(provider, theme)}
               alt={name}
-              className={`size-3.5 rounded-none object-contain${unusable ? " opacity-40 grayscale" : ""}`}
+              className="size-3.5 rounded-none object-contain"
             />
           </Avatar>
         )

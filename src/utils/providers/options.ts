@@ -1,125 +1,15 @@
 import type { JSONValue } from "ai"
-import { isOpenAICompatibleLLMProvider, supportsTopLevelReasoning } from "@/types/config/provider"
-import { LLM_MODEL_OPTIONS } from "../constants/models"
-
-export interface RecommendedProviderOptionsMatch {
-  matchIndex: number
-  options: Record<string, JSONValue>
-}
-
-const OPENAI_COMPATIBLE_OPTION_ALIASES = {
-  reasoning_effort: "reasoningEffort",
-  verbosity: "textVerbosity",
-} as const satisfies Record<string, string>
-
-const REASONING_PROVIDER_OPTION_KEYS = new Set([
-  "enableThinking",
-  "reasoningEffort",
-  "reasoningHistory",
-  "thinking",
-  "thinkingConfig",
-])
-
-function containsOnlyReasoningProviderOptions(options: Record<string, JSONValue>): boolean {
-  return (
-    Object.keys(options).length > 0 &&
-    Object.keys(options).every((key) => REASONING_PROVIDER_OPTION_KEYS.has(key))
-  )
-}
-
-function normalizeUserProviderOptions(
-  provider: string,
-  userOptions: Record<string, JSONValue>,
-): Record<string, JSONValue> {
-  if (!isOpenAICompatibleLLMProvider(provider)) {
-    return userOptions
-  }
-
-  let changed = false
-  const normalizedOptions: Record<string, JSONValue> = { ...userOptions }
-
-  for (const [rawKey, canonicalKey] of Object.entries(OPENAI_COMPATIBLE_OPTION_ALIASES)) {
-    if (!(rawKey in normalizedOptions)) {
-      continue
-    }
-
-    if (!(canonicalKey in normalizedOptions)) {
-      normalizedOptions[canonicalKey] = normalizedOptions[rawKey]!
-    }
-
-    delete normalizedOptions[rawKey]
-    changed = true
-  }
-
-  return changed ? normalizedOptions : userOptions
-}
 
 /**
- * Detect the recommended provider options for a given model.
- * First match wins - more specific patterns should be placed first in MODEL_OPTIONS.
+ * The AI SDK request shape for a provider's own saved options.
+ *
+ * There is no recommendation layer any more. The only model-backed provider in this build is
+ * DeepSeek, and its sampling is left entirely to the API's own defaults — nothing is injected, so
+ * only options a stored config actually carries are ever sent.
  */
-export function getRecommendedProviderOptionsMatch(
-  model: string,
-): RecommendedProviderOptionsMatch | undefined {
-  for (const [matchIndex, { pattern, options }] of LLM_MODEL_OPTIONS.entries()) {
-    if (pattern.test(model)) {
-      return { matchIndex, options }
-    }
-  }
-  return undefined
-}
-
-/**
- * Get the recommended provider options payload without wrapping it by provider id.
- */
-export function getRecommendedProviderOptions(
-  model: string,
-): Record<string, JSONValue> | undefined {
-  return getRecommendedProviderOptionsMatch(model)?.options
-}
-
-/**
- * Wrap a recommendation for the AI SDK request shape.
- */
-export function getProviderOptions(
-  model: string,
-  provider: string,
-): Record<string, Record<string, JSONValue>> {
-  const options = getRecommendedProviderOptions(model)
-  if (!options) {
-    return {}
-  }
-
-  return { [provider]: options }
-}
-
-/**
- * Get provider options for AI SDK calls.
- * - If the user has saved provider options (including `{}`), use them as-is.
- * - Otherwise fall back to the recommended defaults for the current model.
- */
-export function getProviderOptionsWithOverride(
-  model: string,
+export function buildProviderOptions(
   provider: string,
   userOptions?: Record<string, JSONValue>,
-  reasoning?: string,
 ): Record<string, Record<string, JSONValue>> | undefined {
-  if (userOptions !== undefined) {
-    return { [provider]: normalizeUserProviderOptions(provider, userOptions) }
-  }
-
-  const recommendedOptions = getRecommendedProviderOptions(model)
-  if (!recommendedOptions) {
-    return undefined
-  }
-
-  if (
-    reasoning !== undefined &&
-    supportsTopLevelReasoning(provider) &&
-    containsOnlyReasoningProviderOptions(recommendedOptions)
-  ) {
-    return undefined
-  }
-
-  return { [provider]: recommendedOptions }
+  return userOptions ? { [provider]: userOptions } : undefined
 }

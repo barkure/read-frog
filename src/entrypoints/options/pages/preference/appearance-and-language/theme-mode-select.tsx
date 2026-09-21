@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react"
 import type { ThemeMode } from "@/types/config/theme"
-import { Icon } from "@iconify/react"
+import { IconDeviceDesktop, IconMoon, IconSun } from "@tabler/icons-react"
 import { useTheme } from "@/components/providers/theme-provider"
 import {
   Select,
@@ -13,10 +13,10 @@ import {
 import { themeModes } from "@/types/config/theme"
 import { i18n } from "@/utils/i18n"
 
-const MODE_ICON: Record<ThemeMode, string> = {
-  system: "tabler:device-desktop",
-  light: "tabler:sun",
-  dark: "tabler:moon",
+const MODE_ICON: Record<ThemeMode, typeof IconSun> = {
+  system: IconDeviceDesktop,
+  light: IconSun,
+  dark: IconMoon,
 }
 
 const MODE_LABEL_KEY = {
@@ -38,26 +38,31 @@ export function ThemeModeSelect({
 }) {
   const { themeMode, setThemeMode } = useTheme()
 
+  const CurrentIcon = MODE_ICON[themeMode]
+
   return (
     <Select value={themeMode} onValueChange={(value) => setThemeMode(value as ThemeMode)}>
       <SelectTrigger className={className} size={size}>
         <SelectValue render={<span />}>
           <span className="flex items-center gap-2">
-            <Icon icon={MODE_ICON[themeMode]} className="size-4" />
+            <CurrentIcon className="size-4" />
             {i18n.t(MODE_LABEL_KEY[themeMode])}
           </span>
         </SelectValue>
       </SelectTrigger>
       <SelectContent align="end">
         <SelectGroup>
-          {themeModes.map((mode) => (
-            <SelectItem key={mode} value={mode}>
-              <span className="flex items-center gap-2">
-                <Icon icon={MODE_ICON[mode]} className="size-4" />
-                {i18n.t(MODE_LABEL_KEY[mode])}
-              </span>
-            </SelectItem>
-          ))}
+          {themeModes.map((mode) => {
+            const ModeIcon = MODE_ICON[mode]
+            return (
+              <SelectItem key={mode} value={mode}>
+                <span className="flex items-center gap-2">
+                  <ModeIcon className="size-4" />
+                  {i18n.t(MODE_LABEL_KEY[mode])}
+                </span>
+              </SelectItem>
+            )
+          })}
         </SelectGroup>
       </SelectContent>
     </Select>

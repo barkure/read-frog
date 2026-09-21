@@ -1,38 +1,13 @@
-import path from "node:path"
 import process from "node:process"
 import ViteYaml from "@modyfi/vite-plugin-yaml"
 import { defineConfig } from "wxt"
-import { z } from "zod"
-import {
-  createExtensionClientEnvSchema,
-  isLocalPackagesEnabled,
-  resolveExtensionEnv,
-} from "./src/env/shared"
-
 const WXT_API_KEY_PATTERN = /^WXT_.*API_KEY/
-const ALLOWED_BUNDLED_API_KEYS = new Set(["WXT_POSTHOG_API_KEY"])
-const useLocalPackages = isLocalPackagesEnabled(process.env)
-const shouldSkipEnvValidation = process.env.WXT_SKIP_ENV_VALIDATION === "true"
-// Root of the read-frog monorepo whose source is aliased in when developing
-// with local packages. Defaults to the sibling checkout; override with
-// WXT_MONOREPO_PATH to point at a git worktree (relative or absolute).
-const monorepoRoot = process.env.WXT_MONOREPO_PATH
-  ? path.resolve(process.env.WXT_MONOREPO_PATH)
-  : path.resolve(__dirname, "../read-frog-monorepo")
-
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: "src",
   imports: false,
   modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],
   manifestVersion: 3,
-  // WXT top level alias - will be automatically synced to tsconfig.json paths and Vite alias
-  alias: useLocalPackages
-    ? {
-        "@read-frog/definitions": path.resolve(monorepoRoot, "packages/definitions/src"),
-        "@read-frog/api-contract": path.resolve(monorepoRoot, "packages/api-contract/src"),
-      }
-    : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
     description: "__MSG_extDescription__",
@@ -44,20 +19,13 @@ export default defineConfig({
       }),
     permissions: [
       "storage",
-      // The glossary is the only user-authored, non-regenerable data the
-      // extension stores locally. Without this, IndexedDB is "best-effort" and
-      // the browser may evict it under disk pressure — fine for the translation
-      // caches, data loss for a term list the user typed by hand. It also lifts
-      // the 10 MB quota the 20,000-term cap would otherwise sit close to.
+      // Keep local translation caches outside the browser's default storage quota.
       "unlimitedStorage",
       "tabs",
       "alarms",
-      "cookies",
       "contextMenus",
-      "identity",
       "scripting",
       "webNavigation",
-      ...(browser !== "firefox" ? ["offscreen", "sidePanel"] : []),
     ],
     host_permissions: [
       "*://*/*", // Required for scripting.executeScript in any frame
@@ -83,15 +51,13 @@ export default defineConfig({
           strict_min_version: "140.0",
           data_collection_permissions: {
             required: ["none"],
-            optional: ["technicalAndInteraction"],
           },
         },
       },
     }),
   }),
   zip: {
-    includeSources: ["**/*", ".env.production"],
-    excludeSources: ["docs/**/*", "assets/**/*", "repos/**/*", "readmes/**/*"],
+    includeSources: ["**/*"],
   },
   hooks: {
     "vite:build:extendConfig": (entrypoints, viteConfig) => {
@@ -152,16 +118,9 @@ export default defineConfig({
             {
               name: "check-api-key-env",
               buildStart() {
-                z.object(
-                  createExtensionClientEnvSchema(
-                    configEnv.mode === "production",
-                    shouldSkipEnvValidation,
-                  ),
-                ).parse(resolveExtensionEnv(process.env))
-
-                const apiKeyVars = Object.keys(process.env)
-                  .filter((key) => WXT_API_KEY_PATTERN.test(key))
-                  .filter((key) => !ALLOWED_BUNDLED_API_KEYS.has(key))
+                const apiKeyVars = Object.keys(process.env).filter((key) =>
+                  WXT_API_KEY_PATTERN.test(key),
+                )
 
                 if (apiKeyVars.length > 0) {
                   throw new Error(

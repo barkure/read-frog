@@ -3,7 +3,7 @@ import { sendMessage } from "@/utils/message"
 
 export interface BackgroundFetchOptions extends Pick<
   ProxyRequest,
-  "cacheConfig" | "credentials" | "responseType"
+  "credentials" | "responseType"
 > {}
 
 function getRequestUrl(input: RequestInfo | URL) {
@@ -86,7 +86,6 @@ function buildProxyRequest(
     headers: getRequestHeaders(input, init),
     body: getRequestBody(init),
     credentials: options?.credentials,
-    cacheConfig: options?.cacheConfig,
     responseType: options?.responseType ?? "text",
   }
 }

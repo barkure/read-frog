@@ -1,5 +1,5 @@
 import type { SubtitlesDisplayMode, SubtitlesTranslationPosition } from "@/types/config/subtitles"
-import { Icon } from "@iconify/react"
+import { IconRefresh, IconSettings } from "@tabler/icons-react"
 import { deepmerge } from "deepmerge-ts"
 import { useAtom } from "jotai"
 import { useEffect, useState } from "react"
@@ -75,7 +75,7 @@ export function GeneralSettings() {
     <Card className="p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon icon="tabler:settings" className="size-4" />
+          <IconSettings className="size-4" />
           <Label className="text-sm font-semibold">
             {i18n.t("options.videoSubtitles.style.generalSettings")}
           </Label>
@@ -86,7 +86,7 @@ export function GeneralSettings() {
               <Button variant="ghost" size="sm" className="-mr-2" onClick={resetGeneralConfig} />
             }
           >
-            <Icon icon="tabler:refresh" />
+            <IconRefresh />
           </TooltipTrigger>
           <TooltipContent>{i18n.t("options.videoSubtitles.style.reset")}</TooltipContent>
         </Tooltip>

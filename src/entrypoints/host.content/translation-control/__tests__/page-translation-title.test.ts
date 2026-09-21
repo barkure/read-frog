@@ -147,7 +147,7 @@ describe("pageTranslationManager title handling", () => {
       ...DEFAULT_CONFIG,
       pageTranslation: {
         ...DEFAULT_CONFIG.pageTranslation,
-        providerId: "openai-default",
+        providerId: "deepseek-default",
         enableAIContentAware: true,
       },
     })

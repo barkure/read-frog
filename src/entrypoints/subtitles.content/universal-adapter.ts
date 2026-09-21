@@ -1,14 +1,9 @@
 import type { ControlsConfig, PlatformConfig } from "@/entrypoints/subtitles.content/platforms"
-import type { AnalyticsSurface, FeatureUsageContext } from "@/types/analytics"
-import type { Config } from "@/types/config/config"
 import type { SubtitlesSource } from "@/utils/constants/subtitles"
 import type { SubtitlesFetcher } from "@/utils/subtitles/fetchers/types"
 import type { SubtitlesVideoContext } from "@/utils/subtitles/processor/translator"
 import type { SubtitlesFragment } from "@/utils/subtitles/types"
 import { toastManager } from "@/components/ui/base-ui/toast"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyResolvedProvider, UNKNOWN_FEATURE_PROVIDER } from "@/utils/analytics-provider"
 import { getLocalConfig } from "@/utils/config/storage"
 import {
   HIDE_NATIVE_CAPTIONS_STYLE_ID,
@@ -21,7 +16,6 @@ import { resolveLanguageCodeFromLocale } from "@/utils/content/page-language"
 import { waitForElement } from "@/utils/dom/wait-for-element"
 import { i18n } from "@/utils/i18n"
 import { canProviderRefGenerateText } from "@/utils/providers/provider-ref"
-import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { OverlaySubtitlesError, ToastSubtitlesError } from "@/utils/subtitles/errors"
 import { optimizeSubtitles } from "@/utils/subtitles/processor/optimizer"
 import {
@@ -30,20 +24,16 @@ import {
   fetchSubtitlesSummary,
 } from "@/utils/subtitles/processor/translator"
 import { downloadSubtitlesAsSrt } from "@/utils/subtitles/srt"
-import { showAiSubtitlesWallToast, showSubtitlesErrorToast } from "@/utils/subtitles/toast"
-import { requestVideoSummary, VIDEO_SUMMARY_QUERY_SCOPE } from "@/utils/subtitles/video-summary"
-import { queryClient } from "@/utils/tanstack-query"
+import { showSubtitlesErrorToast } from "@/utils/subtitles/toast"
 import {
   adPlayingAtom,
   currentTimeMsAtom,
   currentVideoIdAtom,
   sourceTrackAtom,
   translatedTrackAtom,
-  videoSummaryPartialAtom,
   subtitlesPositionAtom,
   subtitlesSettingsPanelOpenAtom,
   subtitlesSettingsPanelViewAtom,
-  subtitlesSidebarOpenAtom,
   subtitlesSourceAtom,
   subtitlesStore,
 } from "./atoms"
@@ -54,17 +44,8 @@ import { TranslatedSubtitlesDownloader } from "./translated-subtitles-downloader
 import { TranslationCoordinator } from "./translation-coordinator"
 import { ROOT_VIEW } from "./ui/subtitles-settings-panel/views"
 
-type SubtitlesToggleSource = "manual" | "auto" | "shortcut"
-
-const TOGGLE_SOURCE_SURFACE: Record<SubtitlesToggleSource, AnalyticsSurface> = {
-  manual: ANALYTICS_SURFACE.VIDEO_SUBTITLES,
-  auto: ANALYTICS_SURFACE.VIDEO_SUBTITLES_AUTO,
-  shortcut: ANALYTICS_SURFACE.SHORTCUT,
-}
-
 type SubtitlesFetcherFactories = {
   native: () => SubtitlesFetcher
-  ai?: () => SubtitlesFetcher
 }
 
 const LOADING_MESSAGE: Record<SubtitlesSource, string | undefined> = {
@@ -75,16 +56,12 @@ const LOADING_MESSAGE: Record<SubtitlesSource, string | undefined> = {
 export interface SubtitlesProvidersAdapter {
   readonly embedded: boolean | undefined
   readonly containerShrinkRatio: ((container: HTMLElement) => number | null) | undefined
-  readonly supportsAiSubtitles: boolean
   getControlsConfig: () => ControlsConfig | undefined
-  readonly supportsSidebar: boolean
-  generateVideoSummary: (config: Config, videoId?: string | null) => Promise<string | null>
   hasSubtitlesAvailable: () => Promise<boolean>
   ensureSourceTrackPublished: () => Promise<void>
   seekTo: (seconds: number) => void
   toggleSubtitlesManually: (enabled: boolean) => void
   toggleSubtitlesByShortcut: (enabled: boolean) => void
-  requestAiSubtitles: () => Promise<void>
   downloadSourceSubtitles: () => Promise<void>
   downloadTranslatedSubtitles: () => Promise<void>
 }
@@ -103,7 +80,6 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
   private sourceSubtitles: SubtitlesFragment[] = []
   private sourceProcessedSubtitles: SubtitlesFragment[] = []
-  private summaryAbortController: AbortController | null = null
   private sourceVideoId: string | null = null
   private sourceCacheVersion = 0
   private navigationVideoId: string | null
@@ -128,18 +104,10 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     return this.config.containerShrinkRatio
   }
 
-  get supportsSidebar() {
-    return this.config.supportsSidebar ?? false
-  }
-
   get videoIdChanged() {
     const currentVideoId = this.config.getVideoId?.() ?? null
     const knownVideoId = this.navigationVideoId ?? this.sessionVideoId ?? this.sourceVideoId
     return knownVideoId !== null && currentVideoId !== knownVideoId
-  }
-
-  get supportsAiSubtitles(): boolean {
-    return !!this.fetchers.ai
   }
 
   constructor({
@@ -172,11 +140,11 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   }
 
   toggleSubtitlesManually = (enabled: boolean) => {
-    this.toggleSubtitlesWithSource(enabled, "manual")
+    this.toggleSubtitlesWithSource(enabled)
   }
 
   toggleSubtitlesByShortcut = (enabled: boolean) => {
-    this.toggleSubtitlesWithSource(enabled, "shortcut")
+    this.toggleSubtitlesWithSource(enabled)
   }
 
   async handleSourceTrackChanged(): Promise<void> {
@@ -187,40 +155,6 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     }
 
     await this.trackChangeRefreshPromise
-  }
-
-  generateVideoSummary = async (config: Config, videoId = this.config.getVideoId?.() ?? null) => {
-    // A stale query must not cancel the new video's stream or borrow its subtitles.
-    if (
-      videoId === null ||
-      videoId !== subtitlesStore.get(currentVideoIdAtom) ||
-      videoId !== (this.config.getVideoId?.() ?? null)
-    ) {
-      throw new DOMException("Video summary superseded", "AbortError")
-    }
-    this.summaryAbortController?.abort()
-    const abortController = new AbortController()
-    this.summaryAbortController = abortController
-    const { signal } = abortController
-    subtitlesStore.set(videoSummaryPartialAtom, "")
-    try {
-      await this.getOrLoadSourceSubtitles(signal)
-      signal.throwIfAborted()
-      const summary = await requestVideoSummary(this.sourceProcessedSubtitles, config, {
-        signal,
-        onChunk: (partialMarkdown) => {
-          if (!signal.aborted) {
-            subtitlesStore.set(videoSummaryPartialAtom, partialMarkdown)
-          }
-        },
-      })
-      signal.throwIfAborted()
-      return summary
-    } finally {
-      if (this.summaryAbortController === abortController) {
-        this.summaryAbortController = null
-      }
-    }
   }
 
   hasSubtitlesAvailable = () => this.fetcher.hasAvailableSubtitles()
@@ -290,22 +224,9 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     subtitlesStore.set(currentVideoIdAtom, this.navigationVideoId)
   }
 
-  private prepareSummaryForNavigation() {
-    subtitlesStore.set(currentVideoIdAtom, null)
-    this.cancelVideoSummary()
-  }
-
-  private cancelVideoSummary() {
-    this.summaryAbortController?.abort()
-    this.summaryAbortController = null
-    subtitlesStore.set(videoSummaryPartialAtom, "")
-  }
-
   private resetForNavigation() {
     this.switchOperationId++
-    this.prepareSummaryForNavigation()
-    // Keyed by video id already; this only stops them accumulating.
-    queryClient.removeQueries({ queryKey: VIDEO_SUMMARY_QUERY_SCOPE })
+    subtitlesStore.set(currentVideoIdAtom, null)
     this.clearNavigationReinitTimeout()
     this.teardownAdObserver()
     this.destroyScheduler()
@@ -417,7 +338,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   }
 
   private clearVisibleStateForNavigation() {
-    this.prepareSummaryForNavigation()
+    subtitlesStore.set(currentVideoIdAtom, null)
     this.clearNavigationReinitTimeout()
     this.teardownAdObserver()
     this.translatedSubtitlesDownloader?.dispose()
@@ -582,9 +503,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     const config = await getLocalConfig()
     const autoStart = config?.videoSubtitles?.autoStart ?? false
 
-    const learningOpen = subtitlesStore.get(subtitlesSidebarOpenAtom)
-
-    if (!autoStart && !learningOpen) return
+    if (!autoStart) return
 
     if (this.config.embedded) {
       const video = this.subtitlesScheduler?.getVideoElement()
@@ -592,35 +511,27 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
       const start = () => {
         video.removeEventListener("playing", start)
-        this.toggleSubtitlesWithSource(true, "auto")
+        this.toggleSubtitlesWithSource(true)
       }
 
       if (!video.paused) {
-        this.toggleSubtitlesWithSource(true, "auto")
+        this.toggleSubtitlesWithSource(true)
       } else {
         video.addEventListener("playing", start)
       }
       return
     }
 
-    this.toggleSubtitlesWithSource(true, "auto")
+    this.toggleSubtitlesWithSource(true)
   }
 
-  private toggleSubtitlesWithSource(enabled: boolean, source: SubtitlesToggleSource) {
-    this.handleToggleSubtitles(
-      enabled,
-      enabled
-        ? createFeatureUsageContext(
-            ANALYTICS_FEATURE.VIDEO_SUBTITLES,
-            TOGGLE_SOURCE_SURFACE[source],
-          )
-        : undefined,
-    )
+  private toggleSubtitlesWithSource(enabled: boolean) {
+    this.handleToggleSubtitles(enabled)
   }
 
-  private handleToggleSubtitles(enabled: boolean, analyticsContext?: FeatureUsageContext) {
+  private handleToggleSubtitles(enabled: boolean) {
     if (enabled) {
-      void this.switchSubtitlesFetcher(SUBTITLES_SOURCE.NATIVE, analyticsContext)
+      void this.switchSubtitlesFetcher(SUBTITLES_SOURCE.NATIVE)
     } else {
       this.subtitlesScheduler?.hide()
       this.showNativeSubtitles()
@@ -628,20 +539,8 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     }
   }
 
-  requestAiSubtitles = async (): Promise<void> => {
-    if (await this.config.isLiveContent?.()) {
-      showAiSubtitlesWallToast(i18n.t("subtitles.errors.aiLiveReplayUnsupported"))
-      return
-    }
-    return this.switchSubtitlesFetcher(SUBTITLES_SOURCE.AI)
-  }
-
-  private async switchSubtitlesFetcher(
-    next: SubtitlesSource,
-    analyticsContext?: FeatureUsageContext,
-  ): Promise<void> {
-    const make = this.fetchers[next]
-    if (!make) {
+  private async switchSubtitlesFetcher(next: SubtitlesSource): Promise<void> {
+    if (next !== SUBTITLES_SOURCE.NATIVE) {
       return
     }
 
@@ -651,7 +550,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
       this.fetcher.cleanup()
       this.source = next
       subtitlesStore.set(subtitlesSourceAtom, next)
-      this.fetcher = make()
+      this.fetcher = this.fetchers.native()
       this.clearSourceCache()
       this.clearRuntimeSession()
     }
@@ -665,7 +564,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
       this.subtitlesScheduler?.setState("loading", { message })
     }
 
-    const succeeded = await this.startTranslation(analyticsContext)
+    const succeeded = await this.startTranslation()
     if (operationId !== this.switchOperationId) {
       return
     }
@@ -757,24 +656,8 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     this.isNativeSubtitlesHidden = true
   }
 
-  private async startTranslation(analyticsContext?: FeatureUsageContext) {
-    let providerAnalytics = UNKNOWN_FEATURE_PROVIDER
-
+  private async startTranslation() {
     try {
-      const analyticsConfig = await getLocalConfig()
-      // Resolve through the capability registry, not providersConfig: Built-in
-      // AI is synthesized by the registry and is never a row there, so the
-      // lookup returned undefined and every hosted subtitle run was reported as
-      // provider "unknown" — the one metric that would size hosted adoption.
-      providerAnalytics = classifyResolvedProvider(
-        analyticsConfig
-          ? resolveProviderRefForCapability(
-              "videoSubtitles",
-              analyticsConfig.providersConfig,
-              analyticsConfig.videoSubtitles.providerId,
-            )
-          : null,
-      )
       const currentVideoId = this.config.getVideoId?.() ?? ""
       const hasCurrentSession =
         this.sessionProcessedFragments.length > 0 && this.sessionVideoId === currentVideoId
@@ -793,13 +676,6 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
           this.subtitlesScheduler?.supplementSubtitles(this.sessionProcessedFragments)
           this.subtitlesScheduler?.setState("idle")
         }
-        if (analyticsContext) {
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            outcome: "success",
-          })
-        }
         return true
       }
 
@@ -817,23 +693,8 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
       } else {
         await this.processTranslatedSubtitles()
       }
-      if (analyticsContext) {
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          outcome: "success",
-        })
-      }
       return true
     } catch (error) {
-      if (analyticsContext) {
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
-      }
-
       // A deliberate teardown — a superseded switch or a navigation — not a
       // failure the user should read about. Its message is the literal string
       // "Aborted", which would otherwise be painted onto the player untranslated.
@@ -845,16 +706,9 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
       if (error instanceof ToastSubtitlesError) {
         // The loading state has no auto-hide of its own (unlike "error"), so
-        // the toast branch has to clear it — otherwise the "Loading AI
-        // subtitles" pill stays on the player forever after a wall.
+        // the toast branch has to clear it.
         this.subtitlesScheduler?.setState("idle")
-        // Only the AI request has a control on screen to point at; the source
-        // is still AI here because reverting to native happens after this.
-        if (this.source === SUBTITLES_SOURCE.AI) {
-          showAiSubtitlesWallToast(errorMessage, error.action)
-        } else {
-          showSubtitlesErrorToast(errorMessage, error.action)
-        }
+        showSubtitlesErrorToast(errorMessage, error.action)
       } else {
         this.subtitlesScheduler?.setState("error", {
           message: this.config.silentErrors ? "" : errorMessage,
@@ -922,19 +776,17 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
     // Source track for display fallback; scheduler only receives translated cues
     // later. Published before the provider resolve below, which none of this
-    // depends on: for a hosted provider that resolve can reach the network, and
-    // this is the only path that puts captions on screen for the translated
-    // flow — so sequencing it second made the original captions wait on a round
-    // trip they never needed, and a hung request (backgroundFetch carries no
-    // timeout) left the player in "loading" showing nothing at all.
+    // depends on: this is the only path that puts captions on screen for the
+    // translated flow, so sequencing it after the provider resolve made the
+    // original captions wait on work they never needed — and a slow resolve left
+    // the player in "loading" showing nothing at all.
     this.publishSourceTrack(this.sessionProcessedFragments)
 
-    // Resolved once per session; the cache key needs the same identity the
-    // background will use, and a hosted ref costs one status fetch here rather
-    // than one per fragment. Narrowed once for the whole session: segmentation
-    // and the summary are generations, so a translate-only provider keeps the
-    // rule-based recut and skips the summary without a doomed prompt attempt
-    // per look-ahead window.
+    // Resolved once per session so the cache key matches the identity the
+    // background will use, rather than re-resolving per fragment. Narrowed once
+    // for the whole session: segmentation and the summary are generations, so a
+    // translate-only provider keeps the rule-based recut and skips the summary
+    // without a doomed prompt attempt per look-ahead window.
     const providerRef = config ? await resolveSubtitlesProviderRef(config, "lineTranslation") : null
     const promptableProviderRef =
       providerRef && canProviderRefGenerateText(providerRef) ? providerRef : null
@@ -951,9 +803,9 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
         rawFragments: this.sessionSubtitles,
         getVideoElement: () => this.subtitlesScheduler?.getVideoElement() ?? null,
         getSourceLanguage: () => this.fetcher.getSourceLanguage(),
-        // The session ref covers segmentation too: both subtitle routes gate on
-        // the same hosted feature, and per-block re-resolution would cost a
-        // hostedAi.status round trip per look-ahead window.
+        // The session ref covers segmentation too: both subtitle routes
+        // resolve the same capability, and per-block re-resolution would repeat
+        // that lookup for every look-ahead window.
         providerRef: promptableProviderRef,
         preSegmented: this.fetcher.isPreSegmented?.(),
         onChunkSegmented: (chunk, nextFragments) => {

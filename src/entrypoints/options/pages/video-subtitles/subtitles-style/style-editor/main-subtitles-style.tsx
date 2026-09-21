@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react"
+import { IconRefresh, IconTypography } from "@tabler/icons-react"
 import { deepmerge } from "deepmerge-ts"
 import { useAtom } from "jotai"
 import { Button } from "@/components/ui/base-ui/button"
@@ -39,7 +39,7 @@ export function MainSubtitlesStyle() {
     <Card className="p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon icon="tabler:typography" className="size-4" />
+          <IconTypography className="size-4" />
           <Label className="text-sm font-semibold">
             {i18n.t("options.videoSubtitles.style.mainSubtitle")}
           </Label>
@@ -55,7 +55,7 @@ export function MainSubtitlesStyle() {
               />
             }
           >
-            <Icon icon="tabler:refresh" />
+            <IconRefresh />
           </TooltipTrigger>
           <TooltipContent>{i18n.t("options.videoSubtitles.style.reset")}</TooltipContent>
         </Tooltip>

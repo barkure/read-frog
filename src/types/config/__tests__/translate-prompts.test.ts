@@ -32,12 +32,9 @@ describe("built-in translation prompt config", () => {
   })
 
   it.each([pageCustomPromptsConfigSchema, subtitleCustomPromptsConfigSchema])(
-    "normalizes the legacy null selection to default",
+    "rejects legacy null selections",
     (schema) => {
-      expect(schema.parse({ promptId: null, patterns: [] })).toEqual({
-        promptId: "default",
-        patterns: [],
-      })
+      expect(schema.safeParse({ promptId: null, patterns: [] }).success).toBe(false)
     },
   )
 
@@ -50,50 +47,11 @@ describe("built-in translation prompt config", () => {
     },
   )
 
-  it("normalizes legacy page custom ids before background migration can run", () => {
-    const parsed = pageCustomPromptsConfigSchema.parse({
-      promptId: "precision-rewrite",
-      patterns: [
-        { ...customPrompt, id: "precision-rewrite-custom" },
-        { ...customPrompt, id: "default" },
-        { ...customPrompt, id: "precision-rewrite" },
-        { ...customPrompt, id: "precision-rewrite" },
-      ],
-    })
-
-    expect(parsed.promptId).toBe("precision-rewrite-custom-2")
-    expect(parsed.patterns.map(({ id }) => id)).toEqual([
-      "precision-rewrite-custom",
-      "default-custom",
-      "precision-rewrite-custom-2",
-      "precision-rewrite-custom-3",
-    ])
-    expect(pageCustomPromptsConfigSchema.parse(parsed)).toEqual(parsed)
-  })
-
-  it("keeps a legacy null selection on the product default while renaming collisions", () => {
+  it.each(["default", "precision-rewrite"])("rejects reserved custom prompt id %s", (id) => {
     expect(
-      pageCustomPromptsConfigSchema.parse({
-        promptId: null,
-        patterns: [{ ...customPrompt, id: "precision-rewrite" }],
-      }),
-    ).toEqual({
-      promptId: "default",
-      patterns: [{ ...customPrompt, id: "precision-rewrite-custom" }],
-    })
-  })
-
-  it("normalizes legacy subtitle default ids but leaves precision-rewrite custom", () => {
-    const parsed = subtitleCustomPromptsConfigSchema.parse({
-      promptId: "default",
-      patterns: [
-        { ...customPrompt, id: "default" },
-        { ...customPrompt, id: "precision-rewrite" },
-      ],
-    })
-
-    expect(parsed.promptId).toBe("default-custom")
-    expect(parsed.patterns.map(({ id }) => id)).toEqual(["default-custom", "precision-rewrite"])
+      pageCustomPromptsConfigSchema.safeParse({ promptId: id, patterns: [{ ...customPrompt, id }] })
+        .success,
+    ).toBe(false)
   })
 
   it.each([pageCustomPromptsConfigSchema, subtitleCustomPromptsConfigSchema])(

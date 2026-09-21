@@ -1,8 +1,8 @@
 /**
  * Zero-width characters that carry no meaning but break exact comparison.
- * Exported because anything matching against prepared text has to strip the
- * SAME set — a glossary term stripped differently from the page text simply
- * never matches.
+ * Exported because anything comparing against prepared text has to strip the
+ * SAME set — text stripped differently on either side of the comparison never
+ * matches.
  */
 export const INVISIBLE_TRANSLATION_CHARACTERS_REGEX = /[\u200B-\u200D\uFEFF]/g
 

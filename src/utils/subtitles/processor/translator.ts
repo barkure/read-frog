@@ -1,18 +1,12 @@
 import type { SubtitlesFragment } from "../types"
-import type { HostedAiTextStreamRoute } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
 import type { SubtitlePromptContext } from "@/types/content"
-import type { MatchedTerm } from "@/utils/glossary/types"
 import type { PromptableProviderRef, SerializableProviderRef } from "@/utils/providers/provider-ref"
 import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { APICallError } from "ai"
-import { toastManager } from "@/components/ui/base-ui/toast"
 import { isLLMProviderConfig } from "@/types/config/provider"
-import { classifySerializedProvider } from "@/utils/analytics-provider"
 import { getLocalConfig } from "@/utils/config/storage"
 import { cleanText } from "@/utils/content/utils"
-import { resolveGlossaryTerms } from "@/utils/glossary/active-matcher"
-import { trackGlossaryUsed } from "@/utils/glossary/analytics"
 import { Sha256Hex } from "@/utils/hash"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { normalizePromptContextValue } from "@/utils/host/translate/translate-text"
@@ -23,16 +17,9 @@ import { getSubtitlesTranslatePrompt } from "@/utils/prompts/subtitles"
 import {
   canResolvedProviderRefGenerateText,
   getProviderCacheIdentity,
-  HostedAiProviderUnavailableError,
   serializeProviderRef,
 } from "@/utils/providers/provider-ref"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
-
-/**
- * One toast for the whole run, not one per batch: the provider is re-resolved
- * per ≤5-cue batch, and every batch of a video hits the same verdict.
- */
-const SUBTITLES_HOSTED_UNAVAILABLE_TOAST_ID = "subtitles-hosted-unavailable"
 
 /**
  * What the resolved provider is being asked to do. Line translation is the
@@ -42,17 +29,6 @@ const SUBTITLES_HOSTED_UNAVAILABLE_TOAST_ID = "subtitles-hosted-unavailable"
  * out a ref the task can only throw on.
  */
 export type SubtitlesTask = "lineTranslation" | "summary" | "segmentation"
-
-/**
- * Line translation and the summary bill against `videoSubtitles`; segmentation
- * has its own route for the wider output budget, but `getHostedFeatureForRoute`
- * collapses it back onto the same status gate.
- */
-const SUBTITLES_TASK_ROUTE: Record<SubtitlesTask, HostedAiTextStreamRoute> = {
-  lineTranslation: "videoSubtitles",
-  summary: "videoSubtitles",
-  segmentation: "videoSubtitlesSegmentation",
-}
 
 function toFriendlyErrorMessage(error: unknown): string {
   if (error instanceof APICallError) {
@@ -120,7 +96,6 @@ async function buildSubtitleHashComponents(
   enableAIContentAware: boolean,
   subtitlePromptContext: SubtitlePromptContext,
   subtitlesTextContent: string,
-  glossaryTerms: readonly MatchedTerm[],
 ): Promise<string[]> {
   const preparedText = prepareTranslationText(text)
   const normalizedSubtitlesTextContent = normalizePromptContextValue(subtitlesTextContent)
@@ -131,9 +106,9 @@ async function buildSubtitleHashComponents(
     partialLangConfig.targetCode,
   ]
 
-  // Pure translate providers take no prompt; Built-in AI does, and so do local
-  // LLMs, so both contribute the prompt to the cache key.
-  if (providerRef.kind === "local" && !isLLMProviderConfig(providerRef.config)) {
+  // Pure translate providers take no prompt; local LLMs do, so they contribute
+  // the prompt to the cache key.
+  if (!isLLMProviderConfig(providerRef.config)) {
     return hashComponents
   }
 
@@ -141,12 +116,9 @@ async function buildSubtitleHashComponents(
   const promptContext = enableAIContentAware
     ? subtitlePromptContext
     : { ...subtitlePromptContext, videoSummary: undefined }
-  // Passed in rather than resolved here, so the prompt this hash is taken over
-  // is built from exactly the terms the request will carry.
   const { systemPrompt, prompt } = await getSubtitlesTranslatePrompt(targetLangName, preparedText, {
     isBatch: true,
     context: promptContext,
-    glossaryTerms,
   })
   hashComponents.push(systemPrompt, prompt)
   hashComponents.push(
@@ -176,18 +148,9 @@ async function translateSingleSubtitle(
   langConfig: Config["language"],
   providerRef: SerializableProviderRef,
   enableAIContentAware: boolean,
-  glossaryEnabled: boolean,
   videoContext: SubtitlesVideoContext,
 ): Promise<string> {
   const subtitlePromptContext = normalizeSubtitlePromptContext(videoContext)
-  // Resolved once on the page, where the URL says which glossaries apply, and
-  // then carried by the request — the background serves every tab at once.
-  const { terms: glossaryTerms, revision: glossaryRevision } = await resolveGlossaryTerms(
-    prepareTranslationText(text),
-    glossaryEnabled,
-    langConfig.targetCode,
-  )
-  trackGlossaryUsed("videoSubtitles", glossaryTerms, classifySerializedProvider(providerRef))
   const hashComponents = await buildSubtitleHashComponents(
     text,
     providerRef,
@@ -195,7 +158,6 @@ async function translateSingleSubtitle(
     enableAIContentAware,
     subtitlePromptContext,
     videoContext.subtitlesTextContent,
-    glossaryTerms,
   )
 
   if (enableAIContentAware) {
@@ -212,20 +174,14 @@ async function translateSingleSubtitle(
     webTitle: subtitlePromptContext.webTitle,
     webDescription: subtitlePromptContext.webDescription,
     summary: enableAIContentAware ? subtitlePromptContext.videoSummary : undefined,
-    glossaryTerms,
-    glossaryRevision,
   })
 }
 
 export type SubtitlesProviderResolution<
   Ref extends SerializableProviderRef = SerializableProviderRef,
-> =
-  | { status: "ok"; ref: Ref }
-  | { status: "hostedUnavailable"; message: string }
-  | { status: "notPromptable" }
-  | { status: "none" }
+> = { status: "ok"; ref: Ref } | { status: "notPromptable" } | { status: "none" }
 
-/** Reports without announcing, so callers can tell a plan/quota refusal from "nothing selected". */
+/** Reports without announcing, so callers can tell a refusal from "nothing selected". */
 export async function resolveSubtitlesProvider(
   config: Config,
   task: "lineTranslation",
@@ -255,31 +211,24 @@ export async function resolveSubtitlesProvider(
       // A summary or a recut is a generation, but the subtitles provider list
       // is gated on the wider translate capability — so the default Microsoft
       // provider resolves here legally and then cannot be prompted. Refuse
-      // before serializing: no ref a caller could misuse, and no doomed
-      // hostedAi.status fetch for a provider that will never run the task.
+      // before serializing: no ref a caller could misuse.
       if (!canResolvedProviderRefGenerateText(resolved)) {
         return { status: "notPromptable" }
       }
-      return { status: "ok", ref: await serializeProviderRef(resolved, SUBTITLES_TASK_ROUTE[task]) }
+      return { status: "ok", ref: await serializeProviderRef(resolved) }
     }
-    return { status: "ok", ref: await serializeProviderRef(resolved, SUBTITLES_TASK_ROUTE[task]) }
+    return { status: "ok", ref: await serializeProviderRef(resolved) }
   } catch (error) {
-    if (error instanceof HostedAiProviderUnavailableError) {
-      return { status: "hostedUnavailable", message: error.message }
-    }
-    // Nothing else is expected to throw here (serializeProviderRef already
-    // fails open on an unreachable status endpoint). Keep degrading rather
-    // than introducing a new throw into the render path, but leave a trace.
+    // Nothing else is expected to throw here. Keep degrading rather than
+    // introducing a new throw into the render path, but leave a trace.
     logger.warn("[Subtitles] Provider ref resolution failed", error)
     return { status: "none" }
   }
 }
 
 /**
- * Resolve the subtitles provider into a transportable ref. Capability-based so
- * Built-in AI — never a row in providersConfig — is reachable, and serialized
- * once per call so a whole run makes a single hostedAi.status fetch instead of
- * one per fragment.
+ * Resolve the subtitles provider into a transportable ref, serialized once per
+ * call so a whole run makes a single resolution instead of one per fragment.
  */
 export async function resolveSubtitlesProviderRef(
   config: Config,
@@ -294,17 +243,8 @@ export async function resolveSubtitlesProviderRef(
   task: SubtitlesTask,
 ): Promise<SerializableProviderRef | null> {
   const resolution = await resolveSubtitlesProvider(config, task)
-  if (resolution.status === "hostedUnavailable") {
-    // Silence here is indistinguishable from "these lines have no translation".
-    toastManager.add({
-      type: "error",
-      title: resolution.message,
-      id: SUBTITLES_HOSTED_UNAVAILABLE_TOAST_ID,
-    })
-    return null
-  }
-  // notPromptable degrades silently: unlike a hosted denial (something the
-  // user was refused), it is a configuration state the pre-flight UI explains.
+  // notPromptable degrades silently: it is a configuration state the pre-flight
+  // UI explains.
   return resolution.status === "ok" ? resolution.ref : null
 }
 
@@ -314,10 +254,9 @@ export async function fetchSubtitlesSummary(
   providerRef?: PromptableProviderRef | null,
 ): Promise<string | null> {
   // Tri-state ref: a session that already resolved and narrowed its ref passes
-  // it through — re-resolving could mint a different cache identity mid-session
-  // and costs a second hostedAi.status round trip. `null` means the session
-  // narrowed to "no promptable provider": skip outright, no message. Omitted
-  // means "resolve here" (standalone callers).
+  // it through — re-resolving could mint a different cache identity mid-session.
+  // `null` means the session narrowed to "no promptable provider": skip
+  // outright, no message. Omitted means "resolve here" (standalone callers).
   if (providerRef === null) {
     return null
   }
@@ -367,7 +306,6 @@ export async function translateSubtitles(
       langConfig,
       providerRef,
       enableAIContentAware,
-      config.glossary.enabled,
       videoContext,
     ),
   )

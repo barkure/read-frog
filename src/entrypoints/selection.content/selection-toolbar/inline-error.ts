@@ -7,7 +7,6 @@ export interface SelectionToolbarInlineError {
   description: string
 }
 
-type SelectionToolbarErrorKind = "translate" | "customAction"
 type SelectionToolbarPrecheckErrorCode =
   | "actionUnavailable"
   | "missingSelection"
@@ -20,23 +19,11 @@ export function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-function getErrorTitle(kind: SelectionToolbarErrorKind) {
-  return kind === "translate"
-    ? i18n.t("translationHub.translationFailed")
-    : i18n.t("options.selectionToolbar.errors.customActionFailed")
-}
-
-function getErrorFallbackDescription(kind: SelectionToolbarErrorKind) {
-  return kind === "translate"
-    ? i18n.t("translationHub.translationFailedFallback")
-    : i18n.t("options.selectionToolbar.errors.customActionFailedFallback")
-}
-
 function getPrecheckErrorDescription(code: SelectionToolbarPrecheckErrorCode) {
   return i18n.t(`options.selectionToolbar.errors.${code}` as never)
 }
 
-function toErrorDescription(kind: SelectionToolbarErrorKind, error: unknown) {
+function toErrorDescription(error: unknown) {
   // Raw "Extension context invalidated." tells the user nothing actionable, and
   // the popover's retry button can never recover from it — only a reload can.
   if (isExtensionContextInvalidatedError(error)) {
@@ -45,28 +32,24 @@ function toErrorDescription(kind: SelectionToolbarErrorKind, error: unknown) {
 
   const message = extractAISDKErrorMessage(error)
   if (!message || message === UNEXPECTED_ERROR_MESSAGE) {
-    return getErrorFallbackDescription(kind)
+    return i18n.t("translation.failedFallback")
   }
 
   return message
 }
 
 export function createSelectionToolbarPrecheckError(
-  kind: SelectionToolbarErrorKind,
   code: SelectionToolbarPrecheckErrorCode,
 ): SelectionToolbarInlineError {
   return {
-    title: getErrorTitle(kind),
+    title: i18n.t("translation.failed"),
     description: getPrecheckErrorDescription(code),
   }
 }
 
-export function createSelectionToolbarRuntimeError(
-  kind: SelectionToolbarErrorKind,
-  error: unknown,
-): SelectionToolbarInlineError {
+export function createSelectionToolbarRuntimeError(error: unknown): SelectionToolbarInlineError {
   return {
-    title: getErrorTitle(kind),
-    description: toErrorDescription(kind, error),
+    title: i18n.t("translation.failed"),
+    description: toErrorDescription(error),
   }
 }

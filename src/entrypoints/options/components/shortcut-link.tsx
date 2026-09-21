@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react"
+import { IconCommand } from "@tabler/icons-react"
 import { Link } from "react-router"
 import { Button } from "@/components/ui/base-ui/button"
 import { i18n } from "@/utils/i18n"
@@ -21,7 +21,7 @@ export function ShortcutLink({ sectionId, className }: { sectionId: string; clas
         className="-ml-2.5 text-muted-foreground"
         render={<Link to={{ pathname: "/shortcuts", search: buildSectionSearch(sectionId) }} />}
       >
-        <Icon icon="tabler:command" />
+        <IconCommand />
         {i18n.t("options.shortcuts.setShortcut")}
       </Button>
     </span>

@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react"
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 import { Button } from "@/components/ui/base-ui/button"
 import { useSidebar } from "@/components/ui/base-ui/sidebar"
 import { i18n } from "@/utils/i18n"
@@ -10,6 +10,8 @@ import { i18n } from "@/utils/i18n"
 export function CollapseToggle() {
   const { open, toggleSidebar } = useSidebar()
 
+  const ToggleIcon = open ? IconChevronLeft : IconChevronRight
+
   return (
     <div className="absolute top-1/2 right-0 hidden translate-x-1/2 -translate-y-1/2 md:block">
       <Button
@@ -19,7 +21,7 @@ export function CollapseToggle() {
         onClick={toggleSidebar}
         className="rounded-full bg-sidebar text-muted-foreground hover:bg-sidebar-accent hover:text-foreground dark:bg-sidebar dark:hover:bg-sidebar-accent"
       >
-        <Icon icon={open ? "tabler:chevron-left" : "tabler:chevron-right"} />
+        <ToggleIcon />
       </Button>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react"
+import { IconAdjustmentsHorizontal, IconApi, IconCommand } from "@tabler/icons-react"
 import { Link, useLocation } from "react-router"
 import {
   SidebarGroup,
@@ -24,7 +24,7 @@ export function SettingsNav() {
               isActive={pathname === "/api-providers" || pathname === "/"}
               tooltip={i18n.t("options.apiProviders.title")}
             >
-              <Icon icon="tabler:api" />
+              <IconApi />
               <span>{i18n.t("options.apiProviders.title")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -35,7 +35,7 @@ export function SettingsNav() {
               isActive={pathname.startsWith("/preference")}
               tooltip={i18n.t("options.preference.title")}
             >
-              <Icon icon="tabler:adjustments-horizontal" />
+              <IconAdjustmentsHorizontal />
               <span>{i18n.t("options.preference.title")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -46,7 +46,7 @@ export function SettingsNav() {
               isActive={pathname === "/shortcuts"}
               tooltip={i18n.t("options.shortcuts.title")}
             >
-              <Icon icon="tabler:command" />
+              <IconCommand />
               <span>{i18n.t("options.shortcuts.title")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

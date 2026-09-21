@@ -6,12 +6,7 @@ import { logger } from "@/utils/logger"
  *
  * Every list of websites the product has — auto-translate, never-auto-translate,
  * the site-control black/whitelist, the floating button and selection toolbar
- * opt-outs, iframe injection, site rules, the glossary — resolves through here.
- * There used to be a second, hostname-only matcher (`matchDomainPattern`) behind
- * the user-facing lists, which meant two visually identical pattern tables could
- * match differently. It is gone; the one difference that mattered (a bare host
- * covering its subdomains) was applied once, by a config migration, to the
- * patterns that had been stored under those semantics.
+ * opt-outs, iframe injection, site rules — resolves through here.
  */
 
 /**
@@ -185,9 +180,6 @@ export function urlMatchesPattern(url: string, rawPattern: string): boolean {
  * match-pattern syntax with a meaning of its own — that exact host — and
  * silently widening it would be rewriting their input. The website tables store
  * what was typed; see `usePatternList`.
- *
- * The config migration carries a frozen copy of this transform, for the stored
- * patterns of the hostname-only matcher this module replaced.
  *
  * Anything already carrying a path, a wildcard or a colon is returned as-is. The
  * colon case is reachable: an IPv6 literal host is `[::1]`, and `*.[::1]` would

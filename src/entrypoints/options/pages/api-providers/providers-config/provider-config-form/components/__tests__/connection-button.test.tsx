@@ -29,9 +29,9 @@ describe("ConnectionTestButton", () => {
     mutationMock.reset.mockReset()
   })
 
-  it("clears successful feedback when the Open Responses endpoint changes", async () => {
+  it("clears successful feedback when the endpoint changes", async () => {
     const providerConfig = {
-      ...DEFAULT_PROVIDER_CONFIG["open-responses"],
+      ...DEFAULT_PROVIDER_CONFIG.deepseek,
       apiKey: "test-key",
     }
     const { rerender } = render(<ConnectionTestButton providerConfig={providerConfig} />)
@@ -56,7 +56,7 @@ describe("ConnectionTestButton", () => {
       <ConnectionTestButton
         providerConfig={{
           ...providerConfig,
-          url: "https://api.example.com/v2/responses",
+          baseURL: "https://gateway.example.com/v2",
         }}
       />,
     )
@@ -68,9 +68,9 @@ describe("ConnectionTestButton", () => {
     ).toBeInTheDocument()
   })
 
-  it("ignores a result from the previous Open Responses endpoint", async () => {
+  it("ignores a result from the previous endpoint", async () => {
     const providerConfig = {
-      ...DEFAULT_PROVIDER_CONFIG["open-responses"],
+      ...DEFAULT_PROVIDER_CONFIG.deepseek,
       apiKey: "test-key",
     }
     const { rerender } = render(<ConnectionTestButton providerConfig={providerConfig} />)
@@ -88,7 +88,7 @@ describe("ConnectionTestButton", () => {
       <ConnectionTestButton
         providerConfig={{
           ...providerConfig,
-          url: "https://api.example.com/v2/responses",
+          baseURL: "https://gateway.example.com/v2",
         }}
       />,
     )

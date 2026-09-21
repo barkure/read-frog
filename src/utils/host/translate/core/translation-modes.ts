@@ -2,7 +2,6 @@ import type { Config } from "@/types/config/config"
 import type { TranslationMode } from "@/types/config/translate"
 import type { TransNode } from "@/types/dom"
 import { logger } from "@/utils/logger"
-import { resolvePageTranslationProvider } from "@/utils/providers/provider-ref"
 import {
   CONTENT_WRAPPER_CLASS,
   NOTRANSLATE_CLASS,
@@ -99,14 +98,6 @@ import {
 
 let virtualParagraphGroupSequence = 0
 let virtualTranslationOnlyGenerationSequence = 0
-const unsupportedDeepLXHtmlAttributeProviders = new Set<string>()
-const supportedDeepLXHtmlAttributeProviders = new Set<string>()
-type DeepLXHtmlAttributeProbeResult = "supported" | "unsupported" | "unknown"
-interface DeepLXHtmlAttributeProbe {
-  promise: Promise<DeepLXHtmlAttributeProbeResult>
-  resolve: (result: DeepLXHtmlAttributeProbeResult) => void
-}
-const deepLXHtmlAttributeProbes = new Map<string, DeepLXHtmlAttributeProbe>()
 
 function translateTextForAction(
   text: string,
@@ -115,58 +106,6 @@ function translateTextForAction(
 ): Promise<string> {
   return translateTextForPage(text, textFormat, { forceRetranslation })
 }
-
-function createDeepLXHtmlAttributeProbe(): DeepLXHtmlAttributeProbe {
-  let resolve!: (result: DeepLXHtmlAttributeProbeResult) => void
-  const promise = new Promise<DeepLXHtmlAttributeProbeResult>((resolvePromise) => {
-    resolve = resolvePromise
-  })
-  return { promise, resolve }
-}
-
-function finishDeepLXHtmlAttributeProbe(
-  providerKey: string,
-  probe: DeepLXHtmlAttributeProbe | undefined,
-  result: DeepLXHtmlAttributeProbeResult,
-): void {
-  if (!probe || deepLXHtmlAttributeProbes.get(providerKey) !== probe) return
-  deepLXHtmlAttributeProbes.delete(providerKey)
-  probe.resolve(result)
-}
-
-async function acquireDeepLXHtmlAttributeProbe(providerKey: string): Promise<{
-  probe?: DeepLXHtmlAttributeProbe
-  useLegacy: boolean
-}> {
-  while (true) {
-    if (unsupportedDeepLXHtmlAttributeProviders.has(providerKey)) {
-      return { useLegacy: true }
-    }
-    if (supportedDeepLXHtmlAttributeProviders.has(providerKey)) {
-      return { useLegacy: false }
-    }
-
-    const activeProbe = deepLXHtmlAttributeProbes.get(providerKey)
-    if (!activeProbe) {
-      const probe = createDeepLXHtmlAttributeProbe()
-      deepLXHtmlAttributeProbes.set(providerKey, probe)
-      return { probe, useLegacy: false }
-    }
-
-    // An empty/skipped request or a transient error proves neither support nor
-    // incompatibility. Re-enter the loop so exactly one waiter owns the next probe.
-    await activeProbe.promise
-  }
-}
-
-function getDeepLXHtmlAttributeProviderKey(config: Config): string | undefined {
-  const resolved = resolvePageTranslationProvider(config)
-  if (resolved.kind === "system" || resolved.config.provider !== "deeplx") {
-    return undefined
-  }
-  return `${resolved.config.id}:${resolved.config.baseURL ?? ""}`
-}
-
 function getDisplayTranslation(
   sourceText: string,
   translatedText: string | undefined,
@@ -1128,7 +1067,6 @@ async function translateTranslationOnlyRun(
     // The source string mixes text nodes with element outerHTML and the result
     // is re-rendered via innerHTML, so providers must treat it as HTML to keep
     // its tags intact.
-    const deepLXProviderKey = getDeepLXHtmlAttributeProviderKey(config)
     const translateLegacyHtml = async () => {
       const translatedHtml = await translateTextForAction(
         protectedHtml.legacyRequestHtml,
@@ -1140,45 +1078,18 @@ async function translateTranslationOnlyRun(
     const translateRequest = async () => {
       if (!protectedHtml.hasPlaceholders) return translateLegacyHtml()
 
-      let ownedDeepLXProbe: DeepLXHtmlAttributeProbe | undefined
-      if (deepLXProviderKey) {
-        const probeDecision = await acquireDeepLXHtmlAttributeProbe(deepLXProviderKey)
-        if (probeDecision.useLegacy) return translateLegacyHtml()
-        ownedDeepLXProbe = probeDecision.probe
-      }
-
       try {
         const translatedHtml = await translateTextForAction(
           protectedHtml.requestHtml,
           "html",
           forceRetranslation,
         )
-        if (!translatedHtml) {
-          if (deepLXProviderKey) {
-            finishDeepLXHtmlAttributeProbe(deepLXProviderKey, ownedDeepLXProbe, "unknown")
-          }
-          return translatedHtml
-        }
-
-        const restoredHtml = protectedHtml.restore(translatedHtml)
-        if (deepLXProviderKey) {
-          supportedDeepLXHtmlAttributeProviders.add(deepLXProviderKey)
-          finishDeepLXHtmlAttributeProbe(deepLXProviderKey, ownedDeepLXProbe, "supported")
-        }
-        return restoredHtml
+        return translatedHtml ? protectedHtml.restore(translatedHtml) : translatedHtml
       } catch (error) {
-        if (!isHtmlAttributeMarkerIntegrityError(error)) {
-          if (deepLXProviderKey) {
-            finishDeepLXHtmlAttributeProbe(deepLXProviderKey, ownedDeepLXProbe, "unknown")
-          }
-          throw error
-        }
+        // A provider that does not carry the markers through gets the whole document as HTML
+        // instead of the marker-protected variant.
+        if (!isHtmlAttributeMarkerIntegrityError(error)) throw error
 
-        if (deepLXProviderKey) {
-          unsupportedDeepLXHtmlAttributeProviders.add(deepLXProviderKey)
-          supportedDeepLXHtmlAttributeProviders.delete(deepLXProviderKey)
-          finishDeepLXHtmlAttributeProbe(deepLXProviderKey, ownedDeepLXProbe, "unsupported")
-        }
         logger.warn("HTML attribute placeholders were not preserved; retrying full HTML", error)
         return translateLegacyHtml()
       }

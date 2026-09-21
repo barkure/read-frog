@@ -1,7 +1,6 @@
 import "@/utils/zod-config"
 import type { Config, UiLanguage } from "@/types/config/config"
 import { browser, defineBackground } from "#imports"
-import { env } from "@/env"
 import { storageAdapter } from "@/utils/atoms/storage-adapter"
 import { selectFreshTranslateProviders } from "@/utils/config/default-translate-provider"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
@@ -10,12 +9,10 @@ import { ensureInstalledAtRecorded } from "@/utils/install-time"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
-import { SessionCacheGroupRegistry } from "@/utils/session-cache/session-cache-group-registry"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
 import { dispatchBackgroundStreamPort } from "./background-stream"
 import { initializeActionIcons, registerActionIconListeners } from "./browser-action-icon"
 import { ensureInitializedConfig, isFreshInstalledConfig } from "./config"
-import { setUpConfigBackup } from "./config-backup"
 import { initializeContextMenu, registerContextMenuListeners } from "./context-menu"
 import {
   cleanupAllAiSegmentationCache,
@@ -23,23 +20,12 @@ import {
   cleanupAllTranslationCache,
   setUpDatabaseCleanup,
 } from "./db-cleanup"
-import { setupEdgeTTSMessageHandlers } from "./edge-tts"
-import { setupFeatureUsedEventHandlers } from "./feature-used-event"
-import { setupGlossaryMessageHandlers } from "./glossary"
-import { setupHostedAiStatusHandler } from "./hosted-ai-status"
 import { setupIframeInjection } from "./iframe-injection"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
-import { initMockData } from "./mock-data"
-import { newUserGuide } from "./new-user-guide"
-import { setupNotebasePendingSaveProcessor } from "./notebase-pending-save"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { proxyFetch } from "./proxy-fetch"
-import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
-import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
-import { setupUninstallSurvey } from "./uninstall-survey"
-import { setupVideoSummaryHandlers } from "./video-summary"
 
 export default defineBackground({
   type: "module",
@@ -54,13 +40,6 @@ export default defineBackground({
 
       await ensureInitializedConfig()
 
-      // Open tutorial page when extension is installed
-      if (details.reason === "install") {
-        await browser.tabs.create({
-          url: `${env.WXT_WEBSITE_URL}/guide/step-1`,
-        })
-      }
-
       // Deliberately last: probing Google Translate can hang for seconds on networks that
       // block it, and nothing above should wait for that. Awaiting inside the listener
       // keeps the service worker alive until the probe settles. Guarded by the config
@@ -72,11 +51,7 @@ export default defineBackground({
         await selectFreshTranslateProviders()
       }
 
-      // Clear blog cache on extension update to fetch latest blog posts
-      if (details.reason === "update") {
-        logger.info("[Background] Extension updated, clearing blog cache")
-        await SessionCacheGroupRegistry.removeCacheGroup("blog-fetch")
-      }
+      logger.info("[Background] installed", { reason: details.reason })
     })
 
     onMessage("openPage", async (message) => {
@@ -88,12 +63,6 @@ export default defineBackground({
     onMessage("openOptionsPage", async (message) => {
       logger.info("openOptionsPage", message.data)
       await openOptionsPage(message.data)
-    })
-
-    setupSidePanelMessageHandler({
-      extensionBrowser: browser,
-      logger,
-      registerMessageHandler: onMessage,
     })
 
     onMessage("aiSegmentSubtitles", async (message) => {
@@ -118,8 +87,6 @@ export default defineBackground({
       await cleanupAllAiSegmentationCache()
     })
 
-    newUserGuide()
-    setupFeatureUsedEventHandlers()
     translationMessage()
     registerActionIconListeners()
 
@@ -130,13 +97,11 @@ export default defineBackground({
     // Initialize action icons asynchronously
     void initializeActionIcons()
 
-    // Synchronous: all translation and summary handlers register in the first turn of
+    // Synchronous: all translation handlers register in the first turn of
     // the SW so wake-triggering messages are never dropped during init.
     setupPageTranslationHandlers()
     setupSubtitlesTranslationHandlers()
-    setupVideoSummaryHandlers()
     void setUpDatabaseCleanup()
-    setUpConfigBackup()
 
     // Start config and i18n initialization without delaying synchronous listener
     // registration. Consumers that materialize localized config-derived data await
@@ -148,39 +113,30 @@ export default defineBackground({
       await initI18n(currentUiLanguage)
     })()
 
-    proxyFetch()
-    setupHostedAiStatusHandler()
-    setupGlossaryMessageHandlers()
-    setupNotebasePendingSaveProcessor(() => backgroundReady)
-    setupEdgeTTSMessageHandlers()
     setupLLMGenerateTextMessageHandlers()
-    setupTTSPlaybackMessageHandlers()
-    void initMockData()
+    proxyFetch()
 
     // Setup on-demand iframe injection after page translation is enabled.
     setupIframeInjection()
 
     // i18n bootstrap for the non-React background context. Runs after the synchronous
     // listener registration above (MV3 requires listeners before the first await). The
-    // context menu and the uninstall-survey URL both resolve i18n.t at registration time,
-    // so they must be created AFTER initI18n or they freeze in the wrong language.
+    // context menu resolves i18n.t at registration time, so it must be created AFTER
+    // initI18n or it freezes in the wrong language.
     void (async () => {
       await backgroundReady
       void initializeContextMenu()
-      await setupUninstallSurvey()
     })()
 
     // Keep background-resolved strings in the selected language when it changes.
     // The context menu re-creates itself via its own config watcher
-    // (registerContextMenuListeners), so here we only drive the i18next singleton and
-    // re-set the frozen (localized) uninstall-survey URL.
+    // (registerContextMenuListeners), so here we only drive the i18next singleton.
     storageAdapter.watch<Config>(CONFIG_STORAGE_KEY, (newConfig) => {
       void (async () => {
         await backgroundReady
         if (newConfig.uiLanguage === currentUiLanguage) return
         currentUiLanguage = newConfig.uiLanguage
         await setUiLanguage(newConfig.uiLanguage)
-        await setupUninstallSurvey()
       })()
     })
   },

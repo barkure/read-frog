@@ -6,8 +6,7 @@ import { aiTranslate } from "../ai"
 const mocks = vi.hoisted(() => ({
   generateText: vi.fn<(...args: any[]) => any>(),
   getModelById: vi.fn<(...args: any[]) => any>(),
-  resolveModelId: vi.fn<(...args: any[]) => any>(),
-  getProviderOptionsWithOverride: vi.fn<(...args: any[]) => any>(),
+  buildProviderOptions: vi.fn<(...args: any[]) => any>(),
 }))
 
 vi.mock("ai", () => ({
@@ -18,21 +17,17 @@ vi.mock("@/utils/providers/model", () => ({
   getModelById: mocks.getModelById,
 }))
 
-vi.mock("@/utils/providers/model-id", () => ({
-  resolveModelId: mocks.resolveModelId,
-}))
-
 vi.mock("@/utils/providers/options", () => ({
-  getProviderOptionsWithOverride: mocks.getProviderOptionsWithOverride,
+  buildProviderOptions: mocks.buildProviderOptions,
 }))
 
 const providerConfig: LLMProviderConfig = {
-  id: "openai-default",
-  name: "OpenAI",
-  provider: "openai",
+  id: "deepseek-default",
+  name: "DeepSeek",
+  provider: "deepseek",
   enabled: true,
   apiKey: "sk-test",
-  model: { model: "gpt-5-mini", isCustomModel: false, customModel: null },
+  model: { model: "deepseek-flash", isCustomModel: false, customModel: null },
 }
 
 const promptResolver = vi.fn<(...args: any[]) => any>().mockResolvedValue({
@@ -44,8 +39,7 @@ describe("aiTranslate", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getModelById.mockResolvedValue("model")
-    mocks.resolveModelId.mockReturnValue("gpt-5-mini")
-    mocks.getProviderOptionsWithOverride.mockReturnValue({})
+    mocks.buildProviderOptions.mockReturnValue(undefined)
   })
 
   it("preserves AI SDK error metadata for retry policy decisions", async () => {

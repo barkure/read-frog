@@ -30,8 +30,7 @@ interface LanguageComboboxProps<T extends string> {
   onValueChange: (value: NoInfer<T>) => void
   /**
    * The rows to offer. Omit for the languages plus `auto`, which is what every
-   * surface beside a page wants; pass your own to offer a different pinned row —
-   * `getGlossaryTargetLanguageItems` is the one caller doing that today.
+   * surface beside a page wants; pass your own to offer a different pinned row.
    */
   items?: LanguageItem<T>[]
   detectedLangCode?: LangCodeISO6393
@@ -56,9 +55,8 @@ export function LanguageCombobox<T extends string = LangCodeISO6393 | "auto">({
   const languageItems = useMemo(() => {
     if (items) return items
     // The rows built here are `LangCodeISO6393 | "auto"`, which is exactly the
-    // default `T`. A caller whose values are anything else — the glossary's
-    // `all` — has to pass `items`, because there are no rows this branch could
-    // build for it.
+    // default `T`. A caller whose values are anything else has to pass `items`,
+    // because there are no rows this branch could build for it.
     return getLanguageItems(detectedLangCode, autoLabel) as LanguageItem<T>[]
   }, [items, detectedLangCode, autoLabel])
 
@@ -84,11 +82,13 @@ export function LanguageCombobox<T extends string = LangCodeISO6393 | "auto">({
       >
         {/* `ComboboxValue` renders no element of its own, so both children below land
             directly in the trigger's flex row. */}
-        <ComboboxValue placeholder={placeholder ?? i18n.t("translationHub.searchLanguages")}>
+        <ComboboxValue
+          placeholder={placeholder ?? i18n.t("popup.languageSelector.searchLanguages")}
+        >
           {(item: LanguageItem<T> | null) => (
             <>
               <span className="min-w-0 flex-1 truncate text-left">
-                {item?.label ?? placeholder ?? i18n.t("translationHub.searchLanguages")}
+                {item?.label ?? placeholder ?? i18n.t("popup.languageSelector.searchLanguages")}
               </span>
               {/* The auto row is named after a real language, so without the badge the
                   trigger reads exactly like that language pinned by hand. */}
@@ -100,7 +100,7 @@ export function LanguageCombobox<T extends string = LangCodeISO6393 | "auto">({
       <ComboboxContent>
         <ComboboxInput
           showTrigger={false}
-          placeholder={placeholder ?? i18n.t("translationHub.searchLanguages")}
+          placeholder={placeholder ?? i18n.t("popup.languageSelector.searchLanguages")}
         />
         <ComboboxList>
           {(item: LanguageItem<T>) => (
@@ -112,7 +112,7 @@ export function LanguageCombobox<T extends string = LangCodeISO6393 | "auto">({
             </ComboboxItem>
           )}
         </ComboboxList>
-        <ComboboxEmpty>{i18n.t("translationHub.noLanguagesFound")}</ComboboxEmpty>
+        <ComboboxEmpty>{i18n.t("popup.languageSelector.noLanguagesFound")}</ComboboxEmpty>
       </ComboboxContent>
     </Combobox>
   )

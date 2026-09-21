@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Icon } from "@iconify/react"
+import { IconChevronRight } from "@tabler/icons-react"
 import { Link } from "react-router"
 import { cn } from "@/utils/styles/utils"
 import { DRILL_IN_LOCATION_STATE } from "../navigation/drill-in"
@@ -29,7 +29,7 @@ export function ConfigNavItem({ to, title, description, className }: ConfigNavIt
       )}
     >
       <ConfigItem title={title} description={description}>
-        <Icon icon="tabler:chevron-right" className="size-4 text-muted-foreground" />
+        <IconChevronRight className="size-4 text-muted-foreground" />
       </ConfigItem>
     </Link>
   )

@@ -11,7 +11,6 @@ import {
   DEFAULT_CONFIG,
 } from "../constants/config"
 import { logger } from "../logger"
-import { runMigration } from "./migration"
 
 export interface InitializeConfigResult {
   /**
@@ -33,57 +32,40 @@ export async function initializeConfig(): Promise<InitializeConfigResult> {
   ])
 
   let config: Config
-  let currentVersion: number
   let didConfigChange = false
   let isFreshInstall = false
 
-  if (!storedConfig) {
+  if (!storedConfig || configMeta?.schemaVersion !== CONFIG_SCHEMA_VERSION) {
     // Initialize locale before building defaults used by this browser context.
     await initI18n(DEFAULT_CONFIG.uiLanguage)
     config = buildFreshDefaultConfig()
-    currentVersion = CONFIG_SCHEMA_VERSION
     didConfigChange = true
     isFreshInstall = true
   } else {
     config = storedConfig
-    currentVersion = configMeta?.schemaVersion ?? 1
   }
 
-  while (currentVersion < CONFIG_SCHEMA_VERSION) {
-    const nextVersion = currentVersion + 1
-    try {
-      config = await runMigration(nextVersion, config)
-      didConfigChange = true
-      currentVersion = nextVersion
-    } catch (error) {
-      console.error(`Migration to version ${nextVersion} failed:`, error)
-      currentVersion = nextVersion
-    }
-  }
-
-  if (!configSchema.safeParse(config).success) {
+  const parsedConfig = configSchema.safeParse(config)
+  if (!parsedConfig.success) {
     logger.warn("Config is invalid, using default config")
     await initI18n(DEFAULT_CONFIG.uiLanguage)
     config = buildFreshDefaultConfig()
-    currentVersion = CONFIG_SCHEMA_VERSION
     didConfigChange = true
     // The rebuilt config is untouched defaults, so recovered users get the
     // same one-time provider selection a genuine fresh install does.
     isFreshInstall = true
   }
 
+  if (parsedConfig.success) config = parsedConfig.data
+
   if (import.meta.env.DEV) {
     const apiKeyResult = applyAPIKeysFromEnv(config)
     config = apiKeyResult.config
     didConfigChange = didConfigChange || apiKeyResult.changed
-
-    const betaResult = applyDevBetaExperience(config)
-    config = betaResult.config
-    didConfigChange = didConfigChange || betaResult.changed
   }
 
   const didMetaNeedUpdate =
-    configMeta?.schemaVersion !== currentVersion || configMeta?.lastModifiedAt === undefined
+    configMeta?.schemaVersion !== CONFIG_SCHEMA_VERSION || configMeta?.lastModifiedAt === undefined
 
   if (didConfigChange) {
     await storage.setItem<Config>(`local:${CONFIG_STORAGE_KEY}`, config)
@@ -91,7 +73,7 @@ export async function initializeConfig(): Promise<InitializeConfigResult> {
 
   if (didConfigChange || didMetaNeedUpdate) {
     await storage.setMeta<ConfigMeta>(`local:${CONFIG_STORAGE_KEY}`, {
-      schemaVersion: currentVersion,
+      schemaVersion: CONFIG_SCHEMA_VERSION,
       lastModifiedAt: configMeta?.lastModifiedAt ?? Date.now(),
     })
   }
@@ -128,23 +110,6 @@ function applyAPIKeysFromEnv(config: Config): { config: Config; changed: boolean
     config: {
       ...config,
       providersConfig,
-    },
-    changed: true,
-  }
-}
-
-function applyDevBetaExperience(config: Config): { config: Config; changed: boolean } {
-  if (config.betaExperience.enabled) {
-    return { config, changed: false }
-  }
-
-  return {
-    config: {
-      ...config,
-      betaExperience: {
-        ...config.betaExperience,
-        enabled: true,
-      },
     },
     changed: true,
   }

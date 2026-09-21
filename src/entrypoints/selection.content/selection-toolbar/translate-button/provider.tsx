@@ -1,16 +1,12 @@
 import type { Hotkey } from "@tanstack/hotkeys"
 import type { ComponentProps, ReactNode } from "react"
-import type {
-  NoteSuggestionProviderRef,
-  SelectionSession,
-  SelectionToolbarTranslateRequestSlice,
-} from "../atoms"
+import type { SelectionSession, SelectionToolbarTranslateRequestSlice } from "../atoms"
 import type { SelectionToolbarInlineError } from "../inline-error"
 import type { SelectionPopoverActions } from "@/components/ui/selection-popover"
 import type { BackgroundTextStreamSnapshot, ThinkingSnapshot } from "@/types/background-stream"
 import type { LLMProviderConfig, TranslateProviderConfig } from "@/types/config/provider"
 import type { PromptableProviderRef } from "@/utils/providers/provider-ref"
-import type { ResolvedProviderRef, SystemProviderRef } from "@/utils/providers/provider-registry"
+import type { ResolvedProviderRef } from "@/utils/providers/provider-registry"
 import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { HotkeyManager } from "@tanstack/hotkeys"
 import { useAtomValue, useSetAtom } from "jotai"
@@ -24,19 +20,12 @@ import {
   useRef,
   useState,
 } from "react"
-import { useHostedAiProviderOptions } from "@/components/llm-providers/use-hosted-ai-provider-options"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { SelectionPopover } from "@/components/ui/selection-popover"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
 import { isLLMProviderConfig, isTranslateProviderConfig } from "@/types/config/provider"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyProviderConfig, classifyResolvedProvider } from "@/utils/analytics-provider"
 import { configFieldsAtomMap, writeConfigAtom } from "@/utils/atoms/config"
 import { buildFeatureProviderPatch } from "@/utils/constants/feature-providers"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
-import { getRandomUUID } from "@/utils/crypto-polyfill"
-import { resolveGlossaryTermsFromCache } from "@/utils/glossary/active-matcher"
-import { trackGlossaryUsed } from "@/utils/glossary/analytics"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { translateTextCore } from "@/utils/host/translate/translate-text"
 import { getOrCreateWebPageContext } from "@/utils/host/translate/webpage-context"
@@ -47,29 +36,22 @@ import {
   isValidConfiguredPageTranslationShortcut,
 } from "@/utils/page-translation-shortcut"
 import { getTranslatePromptFromConfig } from "@/utils/prompts/translate"
-import { resolveModelId } from "@/utils/providers/model-id"
-import { getProviderOptionsWithOverride } from "@/utils/providers/options"
-import { checkProviderAvailability } from "@/utils/providers/provider-ref"
+import { buildProviderOptions } from "@/utils/providers/options"
 import { getSelectableProvidersForCapability } from "@/utils/providers/provider-registry"
-import { getTopLevelReasoning } from "@/utils/providers/reasoning"
 import { shadowWrapper } from "../.."
 import { SelectionToolbarErrorAlert } from "../../components/selection-toolbar-error-alert"
 import { SelectionToolbarFooterContent } from "../../components/selection-toolbar-footer-content"
 import { SelectionToolbarTitleContent } from "../../components/selection-toolbar-title-content"
 import {
   isSelectionToolbarOpenAtom,
-  noteSuggestionProviderAtom,
   selectionSessionAtom,
   selectionToolbarTranslateRequestAtom,
 } from "../atoms"
-import { isSaveToNotebaseDialogOpenAtom } from "../custom-action-button/save-to-notebase-dialog-atom"
 import {
   createSelectionToolbarPrecheckError,
   createSelectionToolbarRuntimeError,
   isAbortError,
 } from "../inline-error"
-import { NoteSuggestionCard } from "../note-suggestion/note-suggestion-card"
-import { useNoteSuggestion } from "../note-suggestion/use-note-suggestion"
 import { useSelectionOpenRequestResolver } from "../use-selection-open-request"
 import { TargetLanguageSelector } from "./target-language-selector"
 import { TranslationContent } from "./translation-content"
@@ -77,17 +59,12 @@ import { TranslationContent } from "./translation-content"
 interface SelectionTranslatePendingOpenRequest {
   anchor?: { x: number; y: number }
   session: SelectionSession
-  surface:
-    | typeof ANALYTICS_SURFACE.SELECTION_TOOLBAR
-    | typeof ANALYTICS_SURFACE.CONTEXT_MENU
-    | typeof ANALYTICS_SURFACE.SHORTCUT
 }
 
 /**
  * Page context for the selection prompt. `summaryProviderRef` is the provider
- * the (cached, smart-context-gated) page summary runs on — hosted and local
- * LLM refs both work; pass null to skip the summary while keeping the raw
- * context (pure translate providers, hosted tier unavailable).
+ * the (cached, smart-context-gated) page summary runs on; pass null to skip the
+ * summary while keeping the raw context (pure translate providers).
  */
 async function getSelectionWebPagePromptContext(
   summaryProviderRef: PromptableProviderRef | null,
@@ -99,12 +76,7 @@ async function getSelectionWebPagePromptContext(
   }
 
   const webSummary = summaryProviderRef
-    ? await getOrGenerateWebPageSummary(
-        webPageContext,
-        summaryProviderRef,
-        enableAIContentAware,
-        "selectionTranslation",
-      )
+    ? await getOrGenerateWebPageSummary(webPageContext, summaryProviderRef, enableAIContentAware)
     : null
   return {
     webTitle: webPageContext.webTitle,
@@ -130,15 +102,10 @@ async function translateWithTextStream({
   registerAbortController: (abortController: AbortController) => void
 }) {
   const targetLangName = LANG_CODE_TO_EN_NAME[translateRequest.language.targetCode]
-  const modelName = resolveModelId(providerConfig.model)
-  const reasoning = getTopLevelReasoning(providerConfig)
-  const providerOptions = getProviderOptionsWithOverride(
-    modelName ?? "",
+  const providerOptions = buildProviderOptions(
     providerConfig.provider,
     providerConfig.providerOptions,
-    reasoning,
   )
-  const temperature = providerConfig.temperature
   const abortController = new AbortController()
   registerAbortController(abortController)
 
@@ -154,15 +121,6 @@ async function translateWithTextStream({
   )
   throwIfAborted()
 
-  // Read from the already-compiled matcher — no await on this path. See
-  // `resolveGlossaryTermsFromCache`.
-  const glossaryTerms = resolveGlossaryTermsFromCache(
-    preparedText,
-    translateRequest.glossaryEnabled,
-    translateRequest.language.targetCode,
-  )
-  trackGlossaryUsed("selectionTranslation", glossaryTerms, classifyProviderConfig(providerConfig))
-
   const { systemPrompt, prompt } = getTranslatePromptFromConfig(
     { customPromptsConfig: translateRequest.customPromptsConfig },
     targetLangName,
@@ -178,7 +136,6 @@ async function translateWithTextStream({
             },
           }
         : {}),
-      glossaryTerms,
     },
   )
 
@@ -189,8 +146,6 @@ async function translateWithTextStream({
       instructions: systemPrompt,
       prompt,
       providerOptions,
-      reasoning,
-      temperature,
     },
     {
       signal: abortController.signal,
@@ -199,83 +154,6 @@ async function translateWithTextStream({
   )
 
   return translatedText
-}
-
-async function translateWithHostedTextStream({
-  preparedText,
-  provider,
-  translateRequest,
-  onChunk,
-  registerAbortController,
-}: {
-  preparedText: string
-  provider: SystemProviderRef
-  translateRequest: SelectionToolbarTranslateRequestSlice
-  onChunk: (data: BackgroundTextStreamSnapshot) => void
-  registerAbortController: (abortController: AbortController) => void
-}) {
-  const targetLangName = LANG_CODE_TO_EN_NAME[translateRequest.language.targetCode]
-  const abortController = new AbortController()
-  registerAbortController(abortController)
-
-  // Smart context on hosted runs mirrors the BYOK LLM path: the summary is
-  // generated (and cached per page + provider) on the same Built-in AI
-  // provider. Fail soft — a summary the tier cannot fund degrades to raw
-  // context instead of blocking the translation, whose own stream surfaces
-  // the real error.
-  let summaryProviderRef: PromptableProviderRef | null = null
-  if (translateRequest.enableAIContentAware) {
-    const availability = await checkProviderAvailability(provider, "selectionTranslation")
-    summaryProviderRef = availability.available ? availability.providerRef : null
-  }
-  const webPageContext = await getSelectionWebPagePromptContext(
-    summaryProviderRef,
-    translateRequest.enableAIContentAware,
-  )
-  const glossaryTerms = resolveGlossaryTermsFromCache(
-    preparedText,
-    translateRequest.glossaryEnabled,
-    translateRequest.language.targetCode,
-  )
-  trackGlossaryUsed("selectionTranslation", glossaryTerms, classifyResolvedProvider(provider))
-  if (abortController.signal.aborted) {
-    throw new DOMException("aborted", "AbortError")
-  }
-
-  const { systemPrompt, prompt } = getTranslatePromptFromConfig(
-    { customPromptsConfig: translateRequest.customPromptsConfig },
-    targetLangName,
-    preparedText,
-    {
-      ...(webPageContext
-        ? {
-            context: {
-              webTitle: webPageContext.webTitle,
-              webDescription: webPageContext.webDescription,
-              webContent: webPageContext.webContent,
-              webSummary: webPageContext.webSummary,
-            },
-          }
-        : {}),
-      glossaryTerms,
-    },
-  )
-
-  return streamBackgroundText(
-    {
-      providerKind: "system",
-      providerId: provider.id,
-      modelTier: provider.modelTier,
-      requestId: getRandomUUID(),
-      hostedFeature: "selectionTranslation",
-      instructions: systemPrompt,
-      prompt,
-    },
-    {
-      signal: abortController.signal,
-      onChunk,
-    },
-  )
 }
 
 async function translateWithStandardProvider({
@@ -288,9 +166,8 @@ async function translateWithStandardProvider({
   translateRequest: SelectionToolbarTranslateRequestSlice
 }) {
   // This path is reached only for pure translate providers (the dispatch sends
-  // system refs to the hosted stream and local LLMs to the text stream), and
-  // those take no prompt — requesting a summary for them was a doomed queue
-  // task that could never generate text.
+  // local LLMs to the text stream), and those take no prompt — requesting a
+  // summary for them was a doomed queue task that could never generate text.
   const webPageContext = await getSelectionWebPagePromptContext(
     null,
     translateRequest.enableAIContentAware,
@@ -299,9 +176,7 @@ async function translateWithStandardProvider({
     text,
     langConfig: translateRequest.language,
     providerConfig: provider,
-    hostedFeature: "selectionTranslation",
     enableAIContentAware: translateRequest.enableAIContentAware,
-    glossaryEnabled: translateRequest.glossaryEnabled,
     extraHashTags: ["selectionTranslation"],
     webPageContext,
   })
@@ -309,18 +184,11 @@ async function translateWithStandardProvider({
   return translatedText
 }
 
-/**
- * Keeps the hosted-status hook inside SelectionPopover.Content, which stays
- * unmounted until the popover first opens — the selection app mounts on every
- * page, and merely loading a page must not fire hosted-AI session/status
- * requests. Mirrors CustomActionFooterContent.
- */
 function TranslateFooterContent({
   providers,
   ...props
 }: ComponentProps<typeof SelectionToolbarFooterContent>) {
-  const translateProviders = useHostedAiProviderOptions("selectionTranslation", providers)
-  return <SelectionToolbarFooterContent providers={translateProviders} {...props} />
+  return <SelectionToolbarFooterContent providers={providers} {...props} />
 }
 
 interface SelectionTranslationContextValue {
@@ -353,15 +221,9 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
   const [error, setError] = useState<SelectionToolbarInlineError | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [rerunNonce, setRerunNonce] = useState(0)
-  const [sourceSurface, setSourceSurface] = useState<
-    | typeof ANALYTICS_SURFACE.SELECTION_TOOLBAR
-    | typeof ANALYTICS_SURFACE.CONTEXT_MENU
-    | typeof ANALYTICS_SURFACE.SHORTCUT
-  >(ANALYTICS_SURFACE.SELECTION_TOOLBAR)
   const [activeSession, setActiveSession] = useState<SelectionSession | null>(null)
   const selectionSession = useAtomValue(selectionSessionAtom)
   const translateRequest = useAtomValue(selectionToolbarTranslateRequestAtom)
-  const noteSuggestionProvider = useAtomValue(noteSuggestionProviderAtom)
   const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
   const selectionToolbar = useAtomValue(configFieldsAtomMap.selectionToolbar)
   const setIsSelectionToolbarOpen = useSetAtom(isSelectionToolbarOpenAtom)
@@ -381,33 +243,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     [providersConfig],
   )
   const translateRequestKey = useMemo(() => JSON.stringify(translateRequest), [translateRequest])
-  const isSaveToNotebaseDialogOpen = useAtomValue(isSaveToNotebaseDialogOpenAtom)
-  const {
-    suggestion: noteSuggestion,
-    maybeFire: maybeFireNoteSuggestion,
-    cancel: cancelNoteSuggestion,
-    resetSession: resetNoteSuggestionSession,
-    markShownOnce: markNoteSuggestionShownOnce,
-  } = useNoteSuggestion()
-
-  // Suggestion identity must change whenever a translation re-run would produce
-  // different notes (target language / provider change bumps translateRequestKey;
-  // regenerate bumps rerunNonce). Keying only on popoverSessionKey would leave a
-  // stale old-language suggestion rendered after the new translation.
-  const noteSuggestionSessionKey = `${popoverSessionKey}:${translateRequestKey}:${rerunNonce}`
-
-  const fireNoteSuggestion = useEffectEvent(
-    (preparedText: string, provider: NoteSuggestionProviderRef) => {
-      maybeFireNoteSuggestion({
-        sessionKey: noteSuggestionSessionKey,
-        selectionText: preparedText,
-        paragraphsText: paragraphsText ?? preparedText,
-        targetLangName: LANG_CODE_TO_EN_NAME[translateRequest.language.targetCode],
-        webTitle: titleText ?? "",
-        provider,
-      })
-    },
-  )
 
   const resetPopoverSession = useCallback((options?: { clearAnchor?: boolean }) => {
     setActiveSession(null)
@@ -423,19 +258,15 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     setError(null)
   }, [])
 
-  const cancelCurrentTranslation = useCallback(
-    (runId?: number) => {
-      if (runId !== undefined && runIdRef.current !== runId) {
-        return
-      }
+  const cancelCurrentTranslation = useCallback((runId?: number) => {
+    if (runId !== undefined && runIdRef.current !== runId) {
+      return
+    }
 
-      runIdRef.current += 1
-      abortControllerRef.current?.abort()
-      abortControllerRef.current = null
-      cancelNoteSuggestion()
-    },
-    [cancelNoteSuggestion],
-  )
+    runIdRef.current += 1
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+  }, [])
 
   // Anchor application is owned by SelectionPopover.Root (via requestOpen) so
   // a pinned popover reused in place never moves.
@@ -447,7 +278,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     const pendingRequest = pendingOpenRequestRef.current
 
     setActiveSession(pendingRequest?.session ?? selectionSession)
-    setSourceSurface(pendingRequest?.surface ?? ANALYTICS_SURFACE.SELECTION_TOOLBAR)
     setIsSelectionToolbarOpen(false)
     pendingOpenRequestRef.current = null
   }, [selectionSession, setIsSelectionToolbarOpen])
@@ -475,12 +305,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
         return
       }
 
-      const analyticsContext = createFeatureUsageContext(
-        ANALYTICS_FEATURE.SELECTION_TRANSLATION,
-        sourceSurface,
-      )
-      const providerAnalytics = classifyResolvedProvider(translateRequest.provider)
-
       setIsTranslating(true)
       setTranslatedText(undefined)
       setThinking(null)
@@ -490,66 +314,27 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
       if (!provider) {
         if (runIdRef.current === runId) {
           setIsTranslating(false)
-          setError(createSelectionToolbarPrecheckError("translate", "providerUnavailable"))
+          setError(createSelectionToolbarPrecheckError("providerUnavailable"))
         }
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
         return
       }
 
-      if (provider.kind === "local" && !provider.config.enabled) {
+      if (!provider.config.enabled) {
         if (runIdRef.current === runId) {
           setIsTranslating(false)
-          setError(createSelectionToolbarPrecheckError("translate", "providerDisabled"))
+          setError(createSelectionToolbarPrecheckError("providerDisabled"))
         }
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
         return
       }
 
       try {
         let nextTranslatedText = ""
-        if (provider.kind === "system") {
-          setThinking({
-            status: "thinking",
-            text: "",
-          })
 
-          const nextSnapshot = await translateWithHostedTextStream({
-            preparedText,
-            provider,
-            translateRequest,
-            onChunk: (data) => {
-              if (runIdRef.current === runId) {
-                setTranslatedText(data.output)
-                setThinking(data.thinking)
-              }
-            },
-            registerAbortController: (abortController) => {
-              abortControllerRef.current = abortController
-            },
-          })
-
-          nextTranslatedText = nextSnapshot.output
-          if (runIdRef.current === runId) {
-            setThinking(nextSnapshot.thinking)
-          }
-        } else if (!isTranslateProviderConfig(provider.config)) {
+        if (!isTranslateProviderConfig(provider.config)) {
           if (runIdRef.current === runId) {
             setIsTranslating(false)
-            setError(createSelectionToolbarPrecheckError("translate", "providerUnavailable"))
+            setError(createSelectionToolbarPrecheckError("providerUnavailable"))
           }
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            outcome: "failure",
-          })
           return
         } else if (isLLMProviderConfig(provider.config)) {
           const providerConfig = provider.config
@@ -590,24 +375,10 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
         if (runIdRef.current === runId) {
           setTranslatedText(nextTranslatedText)
         }
-
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          outcome: "success",
-        })
       } catch (caughtError) {
         if (!isAbortError(caughtError) && runIdRef.current === runId) {
           setThinking((prev) => (prev?.text ? { ...prev, status: "complete" } : null))
-          setError(createSelectionToolbarRuntimeError("translate", caughtError))
-        }
-
-        if (!isAbortError(caughtError)) {
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            outcome: "failure",
-          })
+          setError(createSelectionToolbarRuntimeError(caughtError))
         }
       } finally {
         if (runIdRef.current === runId) {
@@ -616,27 +387,10 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
         }
       }
     },
-    [resetTranslationState, selectionText, sourceSurface, translateRequest],
+    [resetTranslationState, selectionText, translateRequest],
   )
 
   const startTranslation = useEffectEvent((runId: number) => {
-    // Kick off the note suggestion together with a translation run. The
-    // suggestion runs on its own configured provider (independent of the
-    // translate provider, which may be Google/Microsoft): a local provider
-    // must be enabled + LLM; a hosted (system) ref is availability-gated
-    // inside the hook via hosted status. The card renders only after the
-    // translation stream finishes.
-    const preparedText = prepareTranslationText(selectionText)
-    const suggestionProvider = noteSuggestionProvider
-    if (
-      preparedText !== "" &&
-      suggestionProvider &&
-      (suggestionProvider.kind === "system" ||
-        (suggestionProvider.config.enabled && isLLMProviderConfig(suggestionProvider.config)))
-    ) {
-      fireNoteSuggestion(preparedText, suggestionProvider)
-    }
-
     void runTranslation(runId)
   })
 
@@ -686,18 +440,11 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
           clearAnchor: pendingOpenRequestRef.current === null,
         })
         lastTranslationRunKeyRef.current = null
-        resetNoteSuggestionSession()
       }
 
       setIsOpen(nextOpen)
     },
-    [
-      applyPendingSession,
-      cancelCurrentTranslation,
-      resetPopoverSession,
-      resetNoteSuggestionSession,
-      resetTranslationState,
-    ],
+    [applyPendingSession, cancelCurrentTranslation, resetPopoverSession, resetTranslationState],
   )
 
   // Pinned popovers are reused in place for a new selection: the window keeps
@@ -707,17 +454,10 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
   const handleReuseRequest = useCallback(() => {
     cancelCurrentTranslation()
     resetTranslationState()
-    resetNoteSuggestionSession()
     applyPendingSession()
-    // Forces a rerun even when the same selection session is retriggered, and
-    // rotates the note-suggestion session key (which has no session id).
+    // Forces a rerun even when the same selection session is retriggered.
     setRerunNonce((prev) => prev + 1)
-  }, [
-    applyPendingSession,
-    cancelCurrentTranslation,
-    resetNoteSuggestionSession,
-    resetTranslationState,
-  ])
+  }, [applyPendingSession, cancelCurrentTranslation, resetTranslationState])
 
   const prepareToolbarOpen = useCallback(() => {
     if (!selectionSession) {
@@ -726,7 +466,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
 
     commitOpenRequest({
       session: selectionSession,
-      surface: ANALYTICS_SURFACE.SELECTION_TOOLBAR,
     })
   }, [commitOpenRequest, selectionSession])
 
@@ -739,7 +478,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     return {
       anchor: request.anchor,
       session: request.session,
-      surface: ANALYTICS_SURFACE.CONTEXT_MENU,
     }
   }, [resolveContextMenuOpenRequest])
 
@@ -752,7 +490,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     return {
       anchor: request.anchor,
       session: request.session,
-      surface: ANALYTICS_SURFACE.SHORTCUT,
     }
   }, [resolveShortcutOpenRequest])
 
@@ -763,7 +500,7 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     ) => {
       if (!request) {
         if (options?.showMissingSelectionToast) {
-          const nextError = createSelectionToolbarPrecheckError("translate", "missingSelection")
+          const nextError = createSelectionToolbarPrecheckError("missingSelection")
           toastManager.add({ type: "error", title: nextError.description })
         }
         return
@@ -833,7 +570,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
         onAnchorChange={setAnchor}
         actionsRef={popoverActionsRef}
         onReuseRequest={handleReuseRequest}
-        disablePointerDismissal={isSaveToNotebaseDialogOpen}
       >
         {children}
         <SelectionPopover.Content
@@ -842,7 +578,7 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
           finalFocus={false}
         >
           <SelectionPopover.Header className="border-b">
-            <SelectionToolbarTitleContent title="Translation" icon="ri:translate" />
+            <SelectionToolbarTitleContent title="Translation" />
             <div className="flex items-center gap-1">
               <TargetLanguageSelector />
               <SelectionPopover.Pin />
@@ -857,16 +593,6 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
               isTranslating={isTranslating}
               thinking={thinking}
             />
-            {!isTranslating &&
-              !!translatedText &&
-              !error &&
-              noteSuggestion?.sessionKey === noteSuggestionSessionKey && (
-                <NoteSuggestionCard
-                  key={noteSuggestion.sessionKey}
-                  suggestion={noteSuggestion}
-                  markShownOnce={markNoteSuggestionShownOnce}
-                />
-              )}
             <SelectionToolbarErrorAlert error={error} className="-mt-3" />
           </SelectionPopover.Body>
           <TranslateFooterContent

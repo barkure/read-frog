@@ -18,10 +18,9 @@ let currentPageTranslationSessionId: string | null = null
 let sessionCounter = 0
 
 /**
- * Provider ref resolved once by start()'s availability gate and reused for
- * every request of the session: per-paragraph serialization must not re-read
- * hosted status mid-page (a status blip would fail in-flight paragraphs, and
- * the model revision used for cache identity must stay stable per session).
+ * Provider ref resolved once by start() and reused for every request of the
+ * session: per-paragraph serialization must not re-resolve mid-page, so the
+ * config used for cache identity stays stable for the whole session.
  */
 let currentSessionProviderRef: SerializableProviderRef | null = null
 

@@ -1,10 +1,10 @@
 import type { PrimitiveAtom, WritableAtom } from "jotai"
 import type { z } from "zod"
 import type { BuiltInPrompt } from "./built-in-prompts"
-import type { customPromptsConfigSchema } from "@/types/config/translate"
+import type { pageCustomPromptsConfigSchema } from "@/types/config/translate"
 import { createContext, use } from "react"
 
-export type CustomPromptsConfig = z.infer<typeof customPromptsConfigSchema>
+export type CustomPromptsConfig = z.infer<typeof pageCustomPromptsConfigSchema>
 export interface PromptInsertCell {
   text: string
   description: string

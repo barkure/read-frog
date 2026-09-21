@@ -1,10 +1,5 @@
-import type { FeatureUsageContext } from "@/types/analytics"
 import type { Config } from "@/types/config/config"
 import debounce from "debounce"
-import { toastManager } from "@/components/ui/base-ui/toast"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyResolvedProvider, UNKNOWN_FEATURE_PROVIDER } from "@/utils/analytics-provider"
 import { getLocalConfig } from "@/utils/config/storage"
 import {
   CONTENT_WRAPPER_CLASS,
@@ -59,9 +54,9 @@ import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import {
   canResolvedProviderRefGenerateText,
-  checkProviderAvailability,
   resolvePageTranslationProvider,
   resolvePageTranslationProviderOrNull,
+  serializeProviderRef,
 } from "@/utils/providers/provider-ref"
 import { removeReactShadowHost } from "@/utils/react-shadow-host/create-shadow-host"
 import { isTranslationCancelledError } from "@/utils/request/cancellation"
@@ -89,7 +84,7 @@ interface IPageTranslationManager {
    * Starts the automatic page translation functionality
    * Registers observers, touch triggers and set storage
    */
-  start: (analyticsContext?: FeatureUsageContext) => Promise<void>
+  start: () => Promise<void>
 
   /**
    * Stops the automatic page translation functionality
@@ -179,7 +174,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     return this.isPageTranslating
   }
 
-  async start(analyticsContext?: FeatureUsageContext): Promise<void> {
+  async start(): Promise<void> {
     if (this.isPageTranslating) {
       console.warn("PageTranslationManager is already active")
       return
@@ -190,13 +185,13 @@ export class PageTranslationManager implements IPageTranslationManager {
     }
 
     // Claim the start slot for the whole pre-activation span: its awaits
-    // (config read, availability gate) would otherwise let a second trigger
-    // pass the isPageTranslating guard above and run a duplicate initial
-    // walk. stop() clears the slot to cancel a still-pending start.
+    // (config read) would otherwise let a second trigger pass the
+    // isPageTranslating guard above and run a duplicate initial walk.
+    // stop() clears the slot to cancel a still-pending start.
     const startToken = Symbol("page-translation-start")
     this.pendingStart = startToken
     try {
-      await this.runStart(startToken, analyticsContext)
+      await this.runStart(startToken)
     } finally {
       if (this.pendingStart === startToken) {
         this.pendingStart = null
@@ -204,30 +199,17 @@ export class PageTranslationManager implements IPageTranslationManager {
     }
   }
 
-  private async runStart(
-    startToken: symbol,
-    analyticsContext?: FeatureUsageContext,
-  ): Promise<void> {
-    const trackedContext = window === window.top ? analyticsContext : undefined
-
+  private async runStart(startToken: symbol): Promise<void> {
     const config = await getLocalConfig()
     if (this.pendingStart !== startToken) {
       return
     }
     if (!config) {
       console.warn("Config is not initialized")
-      if (trackedContext) {
-        void trackFeatureUsed({
-          ...trackedContext,
-          ...UNKNOWN_FEATURE_PROVIDER,
-          outcome: "failure",
-        })
-      }
       return
     }
 
     const requestedProviderConfig = resolvePageTranslationProviderOrNull(config)
-    const providerAnalytics = classifyResolvedProvider(requestedProviderConfig)
 
     if (
       !validateTranslationConfigAndToast({
@@ -236,13 +218,6 @@ export class PageTranslationManager implements IPageTranslationManager {
         language: config.language,
       })
     ) {
-      if (trackedContext) {
-        void trackFeatureUsed({
-          ...trackedContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
-      }
       return
     }
 
@@ -250,155 +225,124 @@ export class PageTranslationManager implements IPageTranslationManager {
     // explicit guard for type-safety and for malformed storage snapshots.
     if (!requestedProviderConfig) return
 
-    const availability = await checkProviderAvailability(requestedProviderConfig, "pageTranslation")
+    const providerRef = await serializeProviderRef(requestedProviderConfig)
     if (this.pendingStart !== startToken) {
       return
     }
-    if (!availability.available) {
-      toastManager.add({ type: "error", title: availability.message })
-      if (trackedContext) {
-        void trackFeatureUsed({
-          ...trackedContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
+
+    const providerConfig = resolvePageTranslationProvider(config)
+
+    // Activate before the notify round trip: once the flag is set, stop()
+    // is authoritative for teardown, so a cancel arriving during any await
+    // below tears the session down instead of racing a pending start. The
+    // session-version checks after each await abort the rest of the setup
+    // once such a teardown (or a newer session) has happened.
+    this.isPageTranslating = true
+    this.translationSessionVersion += 1
+    const sessionVersion = this.translationSessionVersion
+
+    beginPageTranslationSession()
+    setPageTranslationSessionProviderRef(providerRef)
+
+    try {
+      await sendMessage("setAndNotifyPageTranslationStateChangedByManager", {
+        enabled: true,
+        url: window.location.href,
+      })
+    } catch (error) {
+      // Roll back the not-yet-visible activation locally (the notify
+      // channel just failed, so there is no background state to correct);
+      // without this the manager would stay "active" with no observers.
+      if (this.translationSessionVersion === sessionVersion) {
+        this.stopInternal({ notify: false })
       }
+      throw error
+    }
+    if (this.translationSessionVersion !== sessionVersion) {
       return
     }
 
+    const siteRule = getEffectiveSiteRule(config, window.location.href)
+    if (siteRule.injectedCss) {
+      void ensureSiteRuleCSS(document, siteRule.injectedCss)
+    }
+
+    // Same predicate `getWebPagePromptContext` uses to decide whether it
+    // needs the context at all. Some providers cannot be prompted, so
+    // skipping the warm-up for them would only move the Defuddle
+    // full-document parse into the first translation call, where it blocks
+    // the first visible paragraph and janks the main thread on a long page.
+    await this.primeDocumentTitleContext(
+      config.pageTranslation.enableAIContentAware &&
+        canResolvedProviderRefGenerateText(providerConfig),
+    )
+    if (this.translationSessionVersion !== sessionVersion) {
+      return
+    }
+    this.startDocumentTitleTracking()
+
+    // Listen to existing elements when they enter the viewport
+    const walkId = getRandomUUID()
+    this.walkId = walkId
+    this.intersectionObserver = new IntersectionObserver((entries, observer) => {
+      const targets: HTMLElement[] = []
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue
+        observer.unobserve(entry.target)
+        if (isHTMLElement(entry.target) && !entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
+          targets.push(entry.target)
+        }
+      }
+      if (targets.length === 0) return
+      void (async () => {
+        // One config read per callback batch — a dense first intersection
+        // can deliver hundreds of entries at once (#1881).
+        const currentConfig = await getLocalConfig()
+        if (!currentConfig) {
+          logger.error("Global config is not initialized")
+          return
+        }
+        if (this.walkId !== walkId) return
+        // One shared pacer bounds the batch's synchronous expansion work;
+        // the liveness check stops paced expansion promptly if the user
+        // cancels mid-flight (#1881).
+        const pacer = createWorkPacer()
+        const isWalkCurrent = () => this.walkId === walkId
+        for (const target of targets) {
+          void translateWalkedElement(target, walkId, currentConfig, false, pacer, isWalkCurrent)
+        }
+      })()
+    }, this.intersectionOptions)
+
+    // Observe mutations BEFORE the chunked walk: page JS runs between walk
+    // slices, and records emitted meanwhile must not be lost. The walk only
+    // writes data-read-frog-* attributes, which this observer's
+    // attributeFilter never reports, so this creates no feedback loop.
+    //
+    // Root the observer at documentElement, NOT body: routers like Turbo
+    // Drive replace the body NODE itself on every visit, and an observer
+    // bound to the old body goes permanently blind — the soft URL-change
+    // path (refreshSiteRuleCSS) intentionally never re-attaches observers.
+    // On documentElement the swap itself surfaces as a childList record
+    // with addedNodes=[newBody], which walks the new body like any other
+    // inserted subtree.
+    this.observeMutations(document.documentElement)
+
+    // Label existing elements in time-sliced chunks (walkability caching is
+    // handled by the walk's onBlockedElement callback). Start at
+    // documentElement so pre-existing reader roots mounted beside body are
+    // included as well as ordinary body content.
+    const initialWalk = this.observeTopLevelParagraphs(document.documentElement, config, {
+      chunked: true,
+    })
+    this.initialWalkDone = initialWalk
     try {
-      const providerConfig = resolvePageTranslationProvider(config)
-
-      // Activate before the notify round trip: once the flag is set, stop()
-      // is authoritative for teardown, so a cancel arriving during any await
-      // below tears the session down instead of racing a pending start. The
-      // session-version checks after each await abort the rest of the setup
-      // once such a teardown (or a newer session) has happened.
-      this.isPageTranslating = true
-      this.translationSessionVersion += 1
-      const sessionVersion = this.translationSessionVersion
-
-      beginPageTranslationSession()
-      setPageTranslationSessionProviderRef(availability.providerRef)
-
-      try {
-        await sendMessage("setAndNotifyPageTranslationStateChangedByManager", {
-          enabled: true,
-          url: window.location.href,
-        })
-      } catch (error) {
-        // Roll back the not-yet-visible activation locally (the notify
-        // channel just failed, so there is no background state to correct);
-        // without this the manager would stay "active" with no observers.
-        if (this.translationSessionVersion === sessionVersion) {
-          this.stopInternal({ notify: false })
-        }
-        throw error
+      await initialWalk
+    } finally {
+      // A newer start() may already have installed a newer walk's promise.
+      if (this.initialWalkDone === initialWalk) {
+        this.initialWalkDone = null
       }
-      if (this.translationSessionVersion !== sessionVersion) {
-        return
-      }
-
-      const siteRule = getEffectiveSiteRule(config, window.location.href)
-      if (siteRule.injectedCss) {
-        void ensureSiteRuleCSS(document, siteRule.injectedCss)
-      }
-
-      // Same predicate `getWebPagePromptContext` uses to decide whether it
-      // needs the context at all. Excluding system providers was right while
-      // hosted runs sent no context; now that they do, skipping the warm-up
-      // only moves the Defuddle full-document parse out of setup and into the
-      // first translation call, where it blocks the first visible paragraph
-      // and janks the main thread on a long page.
-      await this.primeDocumentTitleContext(
-        config.pageTranslation.enableAIContentAware &&
-          canResolvedProviderRefGenerateText(providerConfig),
-      )
-      if (this.translationSessionVersion !== sessionVersion) {
-        return
-      }
-      this.startDocumentTitleTracking()
-
-      // Listen to existing elements when they enter the viewport
-      const walkId = getRandomUUID()
-      this.walkId = walkId
-      this.intersectionObserver = new IntersectionObserver((entries, observer) => {
-        const targets: HTMLElement[] = []
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          observer.unobserve(entry.target)
-          if (isHTMLElement(entry.target) && !entry.target.closest(`.${CONTENT_WRAPPER_CLASS}`)) {
-            targets.push(entry.target)
-          }
-        }
-        if (targets.length === 0) return
-        void (async () => {
-          // One config read per callback batch — a dense first intersection
-          // can deliver hundreds of entries at once (#1881).
-          const currentConfig = await getLocalConfig()
-          if (!currentConfig) {
-            logger.error("Global config is not initialized")
-            return
-          }
-          if (this.walkId !== walkId) return
-          // One shared pacer bounds the batch's synchronous expansion work;
-          // the liveness check stops paced expansion promptly if the user
-          // cancels mid-flight (#1881).
-          const pacer = createWorkPacer()
-          const isWalkCurrent = () => this.walkId === walkId
-          for (const target of targets) {
-            void translateWalkedElement(target, walkId, currentConfig, false, pacer, isWalkCurrent)
-          }
-        })()
-      }, this.intersectionOptions)
-
-      // Observe mutations BEFORE the chunked walk: page JS runs between walk
-      // slices, and records emitted meanwhile must not be lost. The walk only
-      // writes data-read-frog-* attributes, which this observer's
-      // attributeFilter never reports, so this creates no feedback loop.
-      //
-      // Root the observer at documentElement, NOT body: routers like Turbo
-      // Drive replace the body NODE itself on every visit, and an observer
-      // bound to the old body goes permanently blind — the soft URL-change
-      // path (refreshSiteRuleCSS) intentionally never re-attaches observers.
-      // On documentElement the swap itself surfaces as a childList record
-      // with addedNodes=[newBody], which walks the new body like any other
-      // inserted subtree.
-      this.observeMutations(document.documentElement)
-
-      // Label existing elements in time-sliced chunks (walkability caching is
-      // handled by the walk's onBlockedElement callback). Start at
-      // documentElement so pre-existing reader roots mounted beside body are
-      // included as well as ordinary body content.
-      const initialWalk = this.observeTopLevelParagraphs(document.documentElement, config, {
-        chunked: true,
-      })
-      this.initialWalkDone = initialWalk
-      try {
-        await initialWalk
-      } finally {
-        // A newer start() may already have installed a newer walk's promise.
-        if (this.initialWalkDone === initialWalk) {
-          this.initialWalkDone = null
-        }
-      }
-
-      if (trackedContext) {
-        void trackFeatureUsed({
-          ...trackedContext,
-          ...providerAnalytics,
-          outcome: "success",
-        })
-      }
-    } catch (error) {
-      if (trackedContext) {
-        void trackFeatureUsed({
-          ...trackedContext,
-          ...providerAnalytics,
-          outcome: "failure",
-        })
-      }
-      throw error
     }
   }
 
@@ -526,12 +470,7 @@ export class PageTranslationManager implements IPageTranslationManager {
         if (this.isPageTranslating) {
           this.stop({ userInitiated: true })
         } else {
-          void this.start(
-            createFeatureUsageContext(
-              ANALYTICS_FEATURE.PAGE_TRANSLATION,
-              ANALYTICS_SURFACE.TOUCH_GESTURE,
-            ),
-          )
+          void this.start()
         }
       }
       reset()

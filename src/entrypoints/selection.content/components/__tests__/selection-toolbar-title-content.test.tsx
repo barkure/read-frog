@@ -12,35 +12,11 @@ vi.mock("@/components/ui/selection-popover", () => ({
   },
 }))
 
-vi.mock("@iconify/react", () => ({
-  Icon: ({
-    className,
-    icon,
-    strokeWidth,
-  }: {
-    className?: string
-    icon: string
-    strokeWidth?: number
-  }) => (
-    <span
-      aria-hidden="true"
-      className={className}
-      data-icon={icon}
-      data-stroke-width={strokeWidth}
-      data-testid="selection-toolbar-title-icon"
-    />
-  ),
-}))
-
 describe("selectionToolbarTitleContent", () => {
-  it("renders a string icon with the muted foreground color", () => {
-    render(<SelectionToolbarTitleContent icon="tabler:sparkles" title="Vocabulary Insight" />)
+  it("renders the translation icon with the muted foreground color", () => {
+    render(<SelectionToolbarTitleContent title="Translation" />)
 
-    expect(screen.getByText("Vocabulary Insight")).toBeInTheDocument()
-    expect(screen.getByTestId("selection-toolbar-title-icon")).toHaveAttribute(
-      "data-icon",
-      "tabler:sparkles",
-    )
-    expect(screen.getByTestId("selection-toolbar-title-icon")).toHaveClass("text-muted-foreground")
+    expect(screen.getByText("Translation")).toBeInTheDocument()
+    expect(document.querySelector("svg")).toHaveClass("text-muted-foreground")
   })
 })

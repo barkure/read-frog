@@ -19,7 +19,7 @@ describe("resolveScrollTarget", () => {
       resolveScrollTarget({
         navigationType: NavigationType.Push,
         savedOffset: undefined,
-        pathname: "/preference/config-backup",
+        pathname: "/preference/extension-activation",
         previousPathname: "/preference",
       }),
     ).toBe(0)
@@ -31,7 +31,7 @@ describe("resolveScrollTarget", () => {
         navigationType: NavigationType.Pop,
         savedOffset: 420,
         pathname: "/preference",
-        previousPathname: "/preference/config-backup",
+        previousPathname: "/preference/extension-activation",
       }),
     ).toBe(420)
   })
@@ -42,7 +42,7 @@ describe("resolveScrollTarget", () => {
         navigationType: NavigationType.Pop,
         savedOffset: undefined,
         pathname: "/preference",
-        previousPathname: "/preference/config-backup",
+        previousPathname: "/preference/extension-activation",
       }),
     ).toBe(0)
   })

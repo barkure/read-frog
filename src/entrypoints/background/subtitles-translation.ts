@@ -21,18 +21,7 @@ export function setupSubtitlesTranslationHandlers(): void {
   onMessage("enqueueSubtitlesTranslateRequest", async (message) => {
     const { requestQueue, batchQueue } = await queuesPromise
     const {
-      data: {
-        text,
-        langConfig,
-        providerRef,
-        scheduleAt,
-        hash,
-        webTitle,
-        webDescription,
-        summary,
-        glossaryTerms,
-        glossaryRevision,
-      },
+      data: { text, langConfig, providerRef, scheduleAt, hash, webTitle, webDescription, summary },
     } = message
 
     if (hash) {
@@ -54,28 +43,23 @@ export function setupSubtitlesTranslationHandlers(): void {
         text,
         langConfig,
         provider: providerRef,
-        hostedFeature: "videoSubtitles" as const,
         hash,
         scheduleAt,
         context,
-        // Kept off `context`, which is part of the batch key — see
-        // `mergeBatchGlossaryTerms`.
-        glossaryTerms,
-        glossaryRevision,
       }
       result = await batchQueue.enqueue(data)
     } else {
-      // Unreachable for system refs — shouldUseBatchQueue always batches them —
-      // but it must fail loudly rather than silently mistranslate if that ever
-      // changes, since executeTranslate only understands a local config.
+      // `getLocalProviderConfig` is a narrowing helper; every ref reaching here
+      // is already local, so a null result would mean the queue/batch split and
+      // the ref types have drifted apart. Fail loudly rather than
+      // mistranslate.
       const localConfig = getLocalProviderConfig(providerRef)
       if (!localConfig) {
-        throw new Error("Built-in AI subtitle translation must use the batch queue")
+        throw new Error("Subtitle translation needs a local provider config")
       }
       const thunk = (signal?: AbortSignal) =>
         executeTranslate(text, langConfig, localConfig, getSubtitlesTranslatePrompt, {
           signal,
-          glossaryTerms,
         })
       result = await requestQueue.enqueue(thunk, scheduleAt, hash)
     }
@@ -106,7 +90,6 @@ export function setupSubtitlesTranslationHandlers(): void {
       title: videoTitle,
       textContent: subtitlesContext,
       providerRef,
-      hostedFeature: "videoSubtitles",
       // Deliberately without the title, matching the previous key: a video's
       // transcript identifies it, and including a title that players mutate
       // would miss the cache on every re-render.

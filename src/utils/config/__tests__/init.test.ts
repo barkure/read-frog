@@ -8,7 +8,6 @@ const getItemMock = vi.fn<(...args: any[]) => any>()
 const getMetaMock = vi.fn<(...args: any[]) => any>()
 const setItemMock = vi.fn<(...args: any[]) => any>()
 const setMetaMock = vi.fn<(...args: any[]) => any>()
-const runMigrationMock = vi.fn<(...args: any[]) => any>()
 const loggerWarnMock = vi.fn<(...args: any[]) => any>()
 
 vi.mock("#imports", () => ({
@@ -29,10 +28,6 @@ vi.mock("wxt/utils/storage", () => ({
   },
 }))
 
-vi.mock("../migration", () => ({
-  runMigration: runMigrationMock,
-}))
-
 vi.mock("@/utils/logger", () => ({
   logger: {
     warn: loggerWarnMock,
@@ -41,8 +36,6 @@ vi.mock("@/utils/logger", () => ({
 
 function buildStableConfig(): Config {
   const config = structuredClone(DEFAULT_CONFIG)
-  // In DEV mode, beta experience is enabled. Keep it true so no extra write is introduced.
-  config.betaExperience.enabled = true
   config.providersConfig = config.providersConfig.map((providerConfig) => {
     if (!isAPIProviderConfig(providerConfig)) {
       return providerConfig
@@ -68,7 +61,6 @@ describe("initializeConfig", () => {
     vi.clearAllMocks()
     setItemMock.mockResolvedValue(undefined)
     setMetaMock.mockResolvedValue(undefined)
-    runMigrationMock.mockImplementation(async (_nextVersion: number, config: Config) => config)
   })
 
   function translateProviderIdsOf(config: Config) {
@@ -91,7 +83,6 @@ describe("initializeConfig", () => {
     const { initializeConfig } = await import("../init")
     await initializeConfig()
 
-    expect(runMigrationMock).not.toHaveBeenCalled()
     expect(setItemMock).not.toHaveBeenCalled()
     expect(setMetaMock).not.toHaveBeenCalled()
   })
@@ -106,7 +97,7 @@ describe("initializeConfig", () => {
     expect(setItemMock).toHaveBeenCalledTimes(1)
     expect(setItemMock).toHaveBeenCalledWith("local:config", expect.any(Object))
     const freshConfig = setItemMock.mock.calls[0]?.[1] as Config
-    for (const providerId of ["openai-default", "jalapenocloud-default", "deepseek-default"]) {
+    for (const providerId of ["deepseek-default"]) {
       expect(freshConfig.providersConfig.find((provider) => provider.id === providerId)).toEqual(
         expect.objectContaining({ description: expect.any(String) }),
       )
@@ -165,34 +156,25 @@ describe("initializeConfig", () => {
     expect(isFreshInstall).toBe(true)
   })
 
-  it("runs migration and persists migrated config once", async () => {
-    const config = buildStableConfig()
-    const migrated = {
-      ...config,
-      contextMenu: {
-        ...config.contextMenu,
-        enabled: false,
-      },
-    }
-    getItemMock.mockResolvedValueOnce(config)
-    getMetaMock.mockResolvedValueOnce({
-      schemaVersion: CONFIG_SCHEMA_VERSION - 1,
-      lastModifiedAt: 888,
-    })
-    runMigrationMock.mockResolvedValueOnce(migrated)
-
-    const { initializeConfig } = await import("../init")
-    await initializeConfig()
-
-    expect(runMigrationMock).toHaveBeenCalledWith(CONFIG_SCHEMA_VERSION, config)
-    expect(setItemMock).toHaveBeenCalledTimes(1)
-    expect(setItemMock).toHaveBeenCalledWith("local:config", migrated)
-    expect(setMetaMock).toHaveBeenCalledTimes(1)
-    expect(setMetaMock).toHaveBeenCalledWith("local:config", {
-      schemaVersion: CONFIG_SCHEMA_VERSION,
-      lastModifiedAt: 888,
-    })
-  })
+  it.each([CONFIG_SCHEMA_VERSION - 1, CONFIG_SCHEMA_VERSION + 1, undefined])(
+    "rebuilds unsupported config version %s",
+    async (schemaVersion) => {
+      const config = buildStableConfig()
+      config.contextMenu.enabled = false
+      getItemMock.mockResolvedValueOnce(config)
+      getMetaMock.mockResolvedValueOnce({ schemaVersion, lastModifiedAt: 888 })
+      const { initializeConfig } = await import("../init")
+      expect((await initializeConfig()).isFreshInstall).toBe(true)
+      expect(setItemMock).toHaveBeenCalledWith(
+        "local:config",
+        expect.objectContaining({ contextMenu: DEFAULT_CONFIG.contextMenu }),
+      )
+      expect(setMetaMock).toHaveBeenCalledWith(
+        "local:config",
+        expect.objectContaining({ schemaVersion: CONFIG_SCHEMA_VERSION }),
+      )
+    },
+  )
 
   it("only updates meta when config is unchanged but lastModifiedAt is missing", async () => {
     const config = buildStableConfig()

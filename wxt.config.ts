@@ -5,6 +5,7 @@ const WXT_API_KEY_PATTERN = /^WXT_.*API_KEY/
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: "src",
+  outDir: "dist",
   imports: false,
   modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],
   manifestVersion: 3,

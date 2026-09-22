@@ -382,6 +382,7 @@ describe("translationMessage", () => {
       if (key === getDetectedCodeStateKey(2)) return "jpn"
       return undefined
     })
+    tabsGetMock.mockResolvedValue({ id: 1, url: "https://example.com" })
 
     const onActivated = getOnActivatedListener()
     await onActivated({ tabId: 1 })
@@ -399,6 +400,7 @@ describe("translationMessage", () => {
 
   it("publishes default detected language when an activated tab has no cache", async () => {
     await setupSubject()
+    tabsGetMock.mockResolvedValue({ id: 42, url: "https://example.com" })
 
     await getOnActivatedListener()({ tabId: 42 })
 
@@ -406,6 +408,18 @@ describe("translationMessage", () => {
       detectedCode: DEFAULT_DETECTED_CODE,
     })
     expect(sendMessageMock).toHaveBeenCalledWith("refreshDetectedPageLanguage", undefined, 42)
+  })
+
+  it("does not message a tab that cannot host the content script", async () => {
+    await setupSubject()
+    tabsGetMock.mockResolvedValue({ id: 42, url: "chrome-extension://abcdefghijklmnop/popup.html" })
+
+    await getOnActivatedListener()({ tabId: 42 })
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith("refreshDetectedPageLanguage", undefined, 42)
+    expect(sendMessageMock).toHaveBeenCalledWith("detectedPageLanguageChanged", {
+      detectedCode: DEFAULT_DETECTED_CODE,
+    })
   })
 
   it("clears detected language cache when a tab is removed", async () => {

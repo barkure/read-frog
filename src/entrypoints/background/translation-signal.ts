@@ -56,15 +56,36 @@ async function publishCachedDetectedCodeForTab(tabId: number): Promise<void> {
   notifyDetectedCodeChanged(await getDetectedCodeForTab(tabId))
 }
 
-function requestDetectedPageLanguageRefresh(tabId: number) {
-  void sendMessage("refreshDetectedPageLanguage", undefined, tabId).catch((error) =>
-    logger.warn("Failed to refresh detected page language", error),
-  )
+/**
+ * URLs the host content script is actually injected into: the http/https pair its star-scheme
+ * match covers, plus local `file:` pages.
+ *
+ * Everything else — the extension's own pages, `chrome://*`, the new-tab page, the Web Store, a
+ * PDF viewer — cannot have a receiver. Messaging one is not merely useless: `@webext-core/messaging`
+ * sends tab messages through `chrome.tabs.sendMessage`'s callback form without ever reading
+ * `chrome.runtime.lastError`, so every attempt leaves an
+ * "Unchecked runtime.lastError: Could not establish connection" in the service worker's console
+ * (the promise resolves either way, so a `.catch` never sees it).
+ */
+const URLS_THAT_CAN_HOST_CONTENT_SCRIPT = /^(https?|file):/i
+
+/**
+ * Ask the active tab to re-detect the page language. Fire-and-forget: the tab's own report comes
+ * back through `reportDetectedPageLanguage`, and a tab that cannot answer simply has nothing to
+ * contribute.
+ */
+async function requestDetectedPageLanguageRefresh(tabId: number) {
+  const tab = await browser.tabs.get(tabId).catch(() => null)
+  if (!tab?.url || !URLS_THAT_CAN_HOST_CONTENT_SCRIPT.test(tab.url)) {
+    return
+  }
+
+  void sendMessage("refreshDetectedPageLanguage", undefined, tabId)
 }
 
 async function publishAndRefreshActiveTab(tabId: number): Promise<void> {
   await publishCachedDetectedCodeForTab(tabId)
-  requestDetectedPageLanguageRefresh(tabId)
+  void requestDetectedPageLanguageRefresh(tabId)
 }
 
 export function translationMessage() {

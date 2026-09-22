@@ -113,7 +113,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     sectionId: "provider-config",
     route: "/api-providers",
     titleKey: "options.apiProviders.configTitle",
-    descriptionKey: "options.apiProviders.description",
     pageKey: "options.apiProviders.title",
   },
   {

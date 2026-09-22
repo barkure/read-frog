@@ -77,7 +77,6 @@ options:
   apiProviders:
     title: API 提供商
     pageDescription: 接入 Read Frog 调用的 AI 服务，并为每项功能指定使用哪一个。
-    description: 这个精简版只带 Google 翻译和 Microsoft 翻译（免费、不用 key），以及用来跑提示词的 DeepSeek。
     configTitle: 提供商配置
     setApiKeyWarning:
       message: 请在 $1 页面设置 API Key

@@ -43,7 +43,6 @@ export function ProvidersConfig() {
       id={PROVIDER_CONFIG_SECTION_ID}
       orientation="vertical"
       title={i18n.t("options.apiProviders.configTitle")}
-      description={i18n.t("options.apiProviders.description")}
     >
       <ProviderConfigForm />
     </ConfigItem>

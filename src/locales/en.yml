@@ -77,7 +77,6 @@ options:
   apiProviders:
     title: API Providers
     pageDescription: Connect the AI services Read Frog calls, then choose which one runs each feature.
-    description: This build ships Google Translate and Microsoft Translator, which need no key, and DeepSeek for everything that runs a prompt.
     configTitle: Provider config
     setApiKeyWarning:
       message: Please set your API key on the $1 page

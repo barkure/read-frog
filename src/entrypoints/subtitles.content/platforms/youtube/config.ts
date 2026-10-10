@@ -21,6 +21,7 @@ const NAVIGATE_EVENTS = {
 
 const SHORTS_ACTIVE_PLAYER = "#reel-overlay-container .html5-video-player"
 const WATCH_PLAYER = "#movie_player.html5-video-player"
+const ABOVE_PLAYER_CHROME_BELOW_PLAYER_MENUS = 60
 
 async function isYoutubeLiveContent(): Promise<boolean> {
   const videoId = getYoutubeVideoId()
@@ -42,6 +43,7 @@ function isYoutubeAdPlaying(playerContainer: HTMLElement): boolean {
 const YOUTUBE_MODE_CONFIGS: Record<YoutubeMode, PlatformConfig> = {
   watch: {
     embedded: false,
+    subtitlesZIndex: ABOVE_PLAYER_CHROME_BELOW_PLAYER_MENUS,
     selectors: {
       video: "video.html5-main-video",
       playerContainer: WATCH_PLAYER,
@@ -67,6 +69,7 @@ const YOUTUBE_MODE_CONFIGS: Record<YoutubeMode, PlatformConfig> = {
 
   embed: {
     embedded: true,
+    subtitlesZIndex: ABOVE_PLAYER_CHROME_BELOW_PLAYER_MENUS,
     selectors: {
       video: "video.html5-main-video",
       playerContainer: "#movie_player.html5-video-player",
@@ -92,6 +95,7 @@ const YOUTUBE_MODE_CONFIGS: Record<YoutubeMode, PlatformConfig> = {
 
   shorts: {
     embedded: true,
+    subtitlesZIndex: ABOVE_PLAYER_CHROME_BELOW_PLAYER_MENUS,
     silentErrors: true,
     containerShrinkRatio: (container) => {
       const ratio = Number.parseFloat(

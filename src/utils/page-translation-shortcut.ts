@@ -25,8 +25,42 @@ export function formatPageTranslationShortcut(
     return ""
   }
 
+  const resolvedPlatform = platform ?? detectPlatform()
+  const parts = formatPageTranslationShortcutParts(hotkey, resolvedPlatform)
+  return parts.join(resolvedPlatform === "mac" ? " " : "+")
+}
+
+function hasLiteralPlusKey(hotkey: string): boolean {
+  return hotkey === "+" || hotkey.endsWith("++")
+}
+
+export function formatPageTranslationShortcutParts(
+  hotkey: string | null | undefined,
+  platform?: HotkeyPlatform,
+): string[] {
+  if (isPageTranslationShortcutEmpty(hotkey)) {
+    return []
+  }
+
+  // Don't split the library's display string: on Windows/Linux the parts are
+  // joined with "+", which is also a valid key ("Mod++"). This hotkeys version
+  // also drops that key while parsing, so detect it from the raw string.
   const configuredHotkey = hotkey?.trim() ?? ""
-  return formatForDisplay(configuredHotkey, platform ? { platform } : undefined)
+  const resolvedPlatform = platform ?? detectPlatform()
+  const parsedHotkey = parseHotkey(configuredHotkey, resolvedPlatform)
+  const tokens: string[] = []
+  // Apple order: Control, Option, Shift, Command.
+  if (parsedHotkey.ctrl) tokens.push("Control")
+  if (parsedHotkey.alt) tokens.push("Alt")
+  if (parsedHotkey.shift) tokens.push("Shift")
+  if (parsedHotkey.meta) tokens.push("Meta")
+
+  const key = hasLiteralPlusKey(configuredHotkey) ? "+" : parsedHotkey.key
+  if (key) tokens.push(key)
+
+  return tokens.map((token) =>
+    token === "+" ? "+" : formatForDisplay(token, { platform: resolvedPlatform }),
+  )
 }
 
 export function isValidConfiguredPageTranslationShortcut(

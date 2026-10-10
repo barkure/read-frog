@@ -12,6 +12,10 @@ import {
   GIANT_PARAGRAPH_SPLIT_VIEWPORT_MULTIPLIER,
   GIANT_SPLIT_STRANDED_TEXT_MAX_UNITS,
 } from "@/utils/constants/translate"
+import {
+  clearAppliedDocumentTitleTranslation,
+  setAppliedDocumentTitleTranslation,
+} from "@/utils/content/document-title"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import {
   hasNoWalkAncestor,
@@ -507,20 +511,19 @@ export class PageTranslationManager implements IPageTranslationManager {
   }
 
   private startDocumentTitleTracking(): void {
-    if (!this.shouldManageDocumentTitle()) {
+    if (!this.shouldManageDocumentTitle() || this.lastSourceTitle !== null) {
       return
     }
 
     this.lastSourceTitle = document.title || ""
     this.lastAppliedTranslatedTitle = null
-    this.titleRequestVersion = 0
 
     this.observeDocumentTitle()
     void this.syncDocumentTitle(this.lastSourceTitle)
   }
 
   private stopDocumentTitleTracking(): void {
-    if (!this.shouldManageDocumentTitle()) {
+    if (!this.shouldManageDocumentTitle() || this.lastSourceTitle === null) {
       return
     }
 
@@ -539,6 +542,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     if (this.lastSourceTitle !== null && document.title !== this.lastSourceTitle) {
       document.title = this.lastSourceTitle
     }
+    clearAppliedDocumentTitleTranslation()
 
     this.lastSourceTitle = null
     this.lastAppliedTranslatedTitle = null
@@ -598,6 +602,8 @@ export class PageTranslationManager implements IPageTranslationManager {
 
       const nextTitle = translatedTitle || sourceTitle
       this.lastAppliedTranslatedTitle = nextTitle
+      // Before the write, so no prompt can see the translation without it.
+      setAppliedDocumentTitleTranslation(sourceTitle, nextTitle)
 
       if (document.title === nextTitle) {
         return

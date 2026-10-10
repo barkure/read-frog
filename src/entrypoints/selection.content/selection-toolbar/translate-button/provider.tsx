@@ -26,6 +26,7 @@ import { isLLMProviderConfig, isTranslateProviderConfig } from "@/types/config/p
 import { configFieldsAtomMap, writeConfigAtom } from "@/utils/atoms/config"
 import { buildFeatureProviderPatch } from "@/utils/constants/feature-providers"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
+import { getSourceDocumentTitle } from "@/utils/content/document-title"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { translateTextCore } from "@/utils/host/translate/translate-text"
 import { getOrCreateWebPageContext } from "@/utils/host/translate/webpage-context"
@@ -237,7 +238,7 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
     useSelectionOpenRequestResolver(selectionSession)
   const selectionText = activeSession?.selectionSnapshot.text ?? null
   const paragraphsText = activeSession?.contextSnapshot.text ?? selectionText
-  const titleText = document.title || null
+  const titleText = getSourceDocumentTitle() || null
   const translateProviders = useMemo(
     () => getSelectableProvidersForCapability("selectionTranslation", providersConfig),
     [providersConfig],

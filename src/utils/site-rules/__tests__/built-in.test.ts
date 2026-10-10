@@ -74,6 +74,40 @@ function allSelectors(rule: (typeof BUILT_IN_SITE_RULES)[number]): string[] {
 }
 
 describe("built-in site rules", () => {
+  it.each([
+    "https://browse.library.kiwix.org/viewer",
+    "https://en.browse.library.kiwix.org/content/article",
+    "https://latentk.com/insight/progressive-git/",
+    "https://www.w3schools.com/html/html_iframe.asp",
+    "https://example.com/article",
+    "https://latentk.com/insight/unrelated/",
+    "https://www.w3schools.com/html/html_intro.asp",
+  ])("keeps iframe runtime opt-in on %s", (url) => {
+    expect(resolveSiteRule(url, BUILT_IN_SITE_RULES, [], []).injectIntoIframes).toBeNull()
+  })
+
+  it("does not force a short-text threshold on Wikipedia", () => {
+    const resolved = resolveSiteRule(
+      "https://en.wikipedia.org/wiki/Example",
+      BUILT_IN_SITE_RULES,
+      [],
+      [],
+    )
+    expect(resolved.minCharacters).toBeNull()
+    expect(resolved.minWords).toBeNull()
+  })
+
+  it("keeps Kaggle Learn guide translations in normal flow", () => {
+    const resolved = resolveSiteRule(
+      "https://www.kaggle.com/learn-guide/kaggle-competitions",
+      BUILT_IN_SITE_RULES,
+      [],
+      [],
+    )
+    expect(resolved.injectedCss).toContain(".learnGuide .read-frog-translated-content-wrapper")
+    expect(resolved.injectedCss).toContain("position:static !important")
+  })
+
   it("resolves the inline atom defaults on any URL and folds them into preserve-text", () => {
     const resolved = resolveSiteRule("https://example.com/article", BUILT_IN_SITE_RULES, [], [])
     const atomSelectors = resolved.atomSelector?.split(",") ?? []

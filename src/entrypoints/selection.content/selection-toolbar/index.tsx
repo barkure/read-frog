@@ -1,4 +1,5 @@
 import type { ModalDialogHostController } from "./modal-dialog-host"
+import type { DeferredSelectionOpenDetail } from "@/utils/constants/selection"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import {
@@ -7,7 +8,11 @@ import {
 } from "@/entrypoints/selection.content/overlay-layers"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { NOTRANSLATE_CLASS } from "@/utils/constants/dom-labels"
-import { MARGIN } from "@/utils/constants/selection"
+import {
+  DEFERRED_SELECTION_OPEN_EVENT,
+  MARGIN,
+  SELECTION_TOOLBAR_READY_EVENT,
+} from "@/utils/constants/selection"
 import { cn } from "@/utils/styles/utils"
 import { urlMatchesPattern } from "@/utils/url-pattern"
 import { buildContextSnapshot, readSelectionSnapshot } from "../utils"
@@ -467,11 +472,29 @@ export function SelectionToolbar() {
       }
     }
 
+    const handleDeferredSelection = (event: Event) => {
+      const detail = (event as CustomEvent<DeferredSelectionOpenDetail>).detail
+      if (
+        !detail ||
+        typeof detail.text !== "string" ||
+        !Number.isFinite(detail.x) ||
+        !Number.isFinite(detail.y)
+      )
+        return
+      if (window.getSelection()?.toString() !== detail.text) return
+      handleMouseUp(new MouseEvent("mouseup", { clientX: detail.x, clientY: detail.y }))
+    }
+
     document.addEventListener("mouseup", handleMouseUp)
     document.addEventListener("mousedown", handleMouseDown)
     document.addEventListener("selectionchange", handleSelectionChange)
+    window.addEventListener(DEFERRED_SELECTION_OPEN_EVENT, handleDeferredSelection)
+    window.__READ_FROG_SELECTION_TOOLBAR_READY__ = true
+    window.dispatchEvent(new CustomEvent(SELECTION_TOOLBAR_READY_EVENT))
 
     return () => {
+      window.__READ_FROG_SELECTION_TOOLBAR_READY__ = false
+      window.removeEventListener(DEFERRED_SELECTION_OPEN_EVENT, handleDeferredSelection)
       document.removeEventListener("mouseup", handleMouseUp)
       document.removeEventListener("mousedown", handleMouseDown)
       document.removeEventListener("selectionchange", handleSelectionChange)

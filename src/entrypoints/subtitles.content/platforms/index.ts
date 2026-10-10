@@ -8,6 +8,7 @@ export interface PlatformConfig {
   embedded?: boolean
   silentErrors?: boolean
   containerShrinkRatio?: (container: HTMLElement) => number | null
+  subtitlesZIndex?: number
 
   selectors: {
     video: string

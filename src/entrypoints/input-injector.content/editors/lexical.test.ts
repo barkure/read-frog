@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import { isLexicalElement, replaceLexical } from "./lexical"
 
 function fakeEditor(element: HTMLElement, root: object | undefined) {
-  const update = vi.fn((callback: () => void) => {
+  const update = vi.fn<(callback: () => void) => void>((callback) => {
     callback()
   })
   const editor = {
@@ -20,10 +20,12 @@ describe("lexical input replacement", () => {
     const element = document.createElement("div")
     element.setAttribute("data-lexical-editor", "true")
     element.contentEditable = "true"
-    const insertRawText = vi.fn()
+    const insertRawText = vi.fn<(text: string) => void>()
     const root = {
       getChildrenSize: () => 2,
-      select: vi.fn(() => ({ insertRawText })),
+      select: vi.fn<
+        (anchorOffset: number, focusOffset: number) => { insertRawText: typeof insertRawText }
+      >(() => ({ insertRawText })),
     }
     const { update } = fakeEditor(element, root)
 
@@ -41,7 +43,9 @@ describe("lexical input replacement", () => {
     const element = document.createElement("div")
     const other = document.createElement("div")
     fakeEditor(other, { getChildrenSize: () => 0, select: () => ({ insertRawText() {} }) })
-    Object.assign(element, { __lexicalEditor: (other as any).__lexicalEditor })
+    Object.assign(element, {
+      __lexicalEditor: (other as HTMLElement & { __lexicalEditor?: unknown }).__lexicalEditor,
+    })
 
     expect(replaceLexical(element, "nope")).toBe(false)
   })

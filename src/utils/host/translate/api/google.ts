@@ -20,7 +20,7 @@ const GOOGLE_TRANSLATE_HTML_CLIENT = "wt_lib"
  * to fall back to a provider that works everywhere.
  *
  * To exercise the blocked-network path locally, add one of these to `chromiumArgs` in
- * `web-ext.config.ts` (`pnpm dev` uses a fresh profile per run, so every start is an install):
+ * `web-ext.config.ts` (`npm run dev` uses a fresh profile per run, so every start is an install):
  *   --host-resolver-rules=MAP translate-pa.googleapis.com ^NOTFOUND   → DNS fails fast
  *   --host-resolver-rules=MAP translate-pa.googleapis.com 203.0.113.1 → dropped, times out
  */

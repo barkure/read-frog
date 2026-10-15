@@ -100,9 +100,19 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "^26.9.0",
-      "onFail": "download"
+      "version": "^24.21.0",
+      "onFail": "error"
     }
   },
-  "packageManager": "pnpm@12.4.2"
+  "engines": {
+    "node": "^24.21.0"
+  },
+  "packageManager": "npm@11.19.0",
+  "allowScripts": {
+    "core-js": true,
+    "esbuild": true,
+    "msw": true,
+    "spawn-sync": true,
+    "fsevents": false
+  }
 }

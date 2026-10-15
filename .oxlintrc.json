@@ -25,7 +25,7 @@
     ".agents/**",
     "**/skills/**",
     "**/*.md/**",
-    "**/pnpm-lock.yaml"
+    "**/package-lock.json"
   ],
   "rules": {
     "no-inner-declarations": "error",

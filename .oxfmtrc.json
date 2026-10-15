@@ -19,7 +19,7 @@
     ".claude/**",
     ".codex/**",
     ".cursor/**",
-    "pnpm-lock.yaml",
+    "package-lock.json",
     "**/*.svg"
   ],
   "sortTailwindcss": {

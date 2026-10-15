@@ -12,13 +12,15 @@ Chrome：解压后，在 `chrome://extensions` 开启开发者模式，点击「
 
 ## 开发
 
+需要 Node.js 24.21+（24.x LTS）和 npm 11.19.0。首次安装及 CI 使用 `npm ci`；添加或更新依赖使用 `npm install`，并提交 `package-lock.json`。
+
 ```bash
-pnpm install
-pnpm dev                     # Chrome 开发模式，端口 3333
-pnpm build                   # 构建到 dist/chrome-mv3
-pnpm build:firefox            # 构建到 dist/firefox-mv3
-pnpm type-check
-SKIP_FREE_API=true pnpm test  # 跳过免费翻译接口的联网测试
+npm ci
+npm run dev                 # Chrome 开发模式，端口 3333
+npm run build               # 构建到 dist/chrome-mv3
+npm run build:firefox        # 构建到 dist/firefox-mv3
+npm run type-check
+SKIP_FREE_API=true npm test  # 跳过免费翻译接口的联网测试
 ```
 
 本地构建后，Chrome 加载 `dist/chrome-mv3`。重新构建后重载扩展并刷新网页。

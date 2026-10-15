@@ -12,8 +12,6 @@ Chrome：解压后，在 `chrome://extensions` 开启开发者模式，点击「
 
 ## 开发
 
-需要 Node.js 24.21+（24.x LTS）和 npm 11.19.0。首次安装及 CI 使用 `npm ci`；添加或更新依赖使用 `npm install`，并提交 `package-lock.json`。
-
 ```bash
 npm ci
 npm run dev                 # Chrome 开发模式，端口 3333
